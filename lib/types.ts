@@ -1,0 +1,38 @@
+import type { Feature, Polygon, MultiPolygon } from 'geojson'
+
+export type CommunityCategory =
+  | 'neighborhood_association'
+  | 'block_club'
+  | 'hoa'
+  | 'watershed'
+  | 'parish'
+  | 'school_zone'
+  | 'other'
+
+export type Community = {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  category: CommunityCategory
+  website: string | null
+  email: string | null
+  geojson: Feature<Polygon | MultiPolygon>
+  createdAt: string
+}
+
+export type CommunityInput = {
+  name: string
+  description: string | null
+  category: CommunityCategory
+  website: string | null
+  email: string | null
+  geojson: Feature<Polygon | MultiPolygon>
+}
+
+export type BBox = {
+  minLng: number
+  minLat: number
+  maxLng: number
+  maxLat: number
+}
