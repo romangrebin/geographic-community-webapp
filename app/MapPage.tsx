@@ -133,49 +133,88 @@ export default function MapPage(props: Props) {
       )}
 
       {/* Header */}
-      <header className="shrink-0 z-30 flex items-center gap-2 px-4 py-2.5 bg-panel border-b border-line shadow-sm">
-        <Link
-          href="/"
-          onClick={() => dispatch({ type: 'CLOSE_PANEL' })}
-          className="font-bold text-ink text-base tracking-tight shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          geographic<span className="text-accent">.</span>community
-        </Link>
-        <div className="flex-1 max-w-sm">
-          <AddressSearch onSelect={handleAddressSelect} />
+      <header className="shrink-0 z-30 bg-panel border-b border-line shadow-sm px-4 py-2.5 space-y-2">
+        {/* Row 1: logo + search (+ desktop-only buttons) */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            onClick={() => dispatch({ type: 'CLOSE_PANEL' })}
+            className="font-bold text-ink text-base tracking-tight shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <span className="md:hidden">g<span className="text-accent">.</span>community</span>
+            <span className="hidden md:inline">geographic<span className="text-accent">.</span>community</span>
+          </Link>
+          <div className="flex-1 max-w-sm">
+            <AddressSearch onSelect={handleAddressSelect} />
+          </div>
+
+          {/* Desktop-only: buttons inline in row 1 */}
+          <div className="hidden md:flex items-center gap-2">
+            {drawMode === 'off' && (
+              <button
+                onClick={() => dispatch({ type: 'SHOW_BROWSE' })}
+                className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
+              >
+                All Communities
+              </button>
+            )}
+            <button
+              onClick={() => dispatch({ type: 'SHOW_ABOUT' })}
+              className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
+            >
+              About
+            </button>
+            {drawMode === 'off' ? (
+              <button
+                onClick={() => dispatch({ type: 'START_DRAW' })}
+                className={`${navBtnClass} bg-accent text-white hover:bg-accent-hi shadow-sm`}
+              >
+                + Add Community
+              </button>
+            ) : (
+              <button
+                onClick={() => dispatch({ type: 'CANCEL_DRAW' })}
+                className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700 shadow-sm`}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
 
-        {drawMode === 'off' && (
+        {/* Row 2: buttons (mobile only) */}
+        <div className="flex md:hidden items-center gap-2">
+          {drawMode === 'off' && (
+            <button
+              onClick={() => dispatch({ type: 'SHOW_BROWSE' })}
+              className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
+            >
+              All
+            </button>
+          )}
           <button
-            onClick={() => dispatch({ type: 'SHOW_BROWSE' })}
+            onClick={() => dispatch({ type: 'SHOW_ABOUT' })}
             className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
           >
-            All Communities
+            About
           </button>
-        )}
-
-        <button
-          onClick={() => dispatch({ type: 'SHOW_ABOUT' })}
-          className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
-        >
-          About
-        </button>
-
-        {drawMode === 'off' ? (
-          <button
-            onClick={() => dispatch({ type: 'START_DRAW' })}
-            className={`${navBtnClass} bg-accent text-white hover:bg-accent-hi shadow-sm`}
-          >
-            + Add A New Community
-          </button>
-        ) : (
-          <button
-            onClick={() => dispatch({ type: 'CANCEL_DRAW' })}
-            className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700 shadow-sm`}
-          >
-            Cancel
-          </button>
-        )}
+          <div className="flex-1" />
+          {drawMode === 'off' ? (
+            <button
+              onClick={() => dispatch({ type: 'START_DRAW' })}
+              className={`${navBtnClass} bg-accent text-white hover:bg-accent-hi shadow-sm`}
+            >
+              + Add
+            </button>
+          ) : (
+            <button
+              onClick={() => dispatch({ type: 'CANCEL_DRAW' })}
+              className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700 shadow-sm`}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Everything below the header */}
