@@ -15,6 +15,7 @@ type DrawInstance = {
   getAll: () => { features: unknown[] }
   add: (f: unknown) => void
   deleteAll: () => void
+  changeMode: (mode: string) => void
 }
 
 type Props = {
@@ -42,7 +43,7 @@ const SELECTED_OUTLINE_LAYER = 'community-selected-outline'
 const NO_SELECTION_FILTER = ['==', ['get', 'communityId'], '__none__'] as unknown as maplibregl.FilterSpecification
 
 const VIEW_STORAGE_KEY = 'gc.mapView'
-const DEFAULT_CENTER: [number, number] = [-87.65, 41.85]
+const DEFAULT_CENTER: [number, number] = [-93.265, 44.9778] // Minneapolis
 const DEFAULT_ZOOM = 11
 
 type SavedView = { center: [number, number]; zoom: number }
@@ -287,60 +288,6 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     }
   }, [clickMarker, mapReady])
 
-  // Persistent user location — if geolocation permission is already granted,
-  // show a live blue dot that updates as the user moves. No auto-prompt; the
-  // user still needs to click the geolocate button the first time.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!mapReady || !map) return
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return
-
-    let userMarker: maplibregl.Marker | null = null
-    let watchId: number | null = null
-
-    const startWatching = () => {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude]
-          if (!userMarker) {
-            const el = document.createElement('div')
-            el.style.cssText = `
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: #4285f4;
-              border: 3px solid #fff;
-              box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.35), 0 1px 4px rgba(0,0,0,0.25);
-              pointer-events: none;
-            `
-            userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
-              .setLngLat(lngLat)
-              .addTo(map)
-          } else {
-            userMarker.setLngLat(lngLat)
-          }
-        },
-        () => { /* silently ignore */ },
-        { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 }
-      )
-    }
-
-    // Only auto-start if the user has previously granted permission.
-    // This lets the location persist across refreshes without prompting.
-    if (navigator.permissions && navigator.permissions.query) {
-      navigator.permissions
-        .query({ name: 'geolocation' as PermissionName })
-        .then((result) => {
-          if (result.state === 'granted') startWatching()
-        })
-        .catch(() => { /* permissions API unavailable */ })
-    }
-
-    return () => {
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId)
-      if (userMarker) userMarker.remove()
-    }
-  }, [mapReady])
 
   // Add/remove draw control
   useEffect(() => {
@@ -354,11 +301,13 @@ const Map = forwardRef<MapHandle, Props>(function Map(
       }
       const draw = new MaplibreDraw({
         displayControlsDefault: false,
-        controls: { polygon: true, trash: true },
+        controls: { trash: true },
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.addControl(draw as any, 'top-left')
       drawRef.current = draw
+      // Immediately activate polygon drawing so the user doesn't need an extra click
+      draw.changeMode('draw_polygon')
 
       const onCreate = (e: { features: unknown[] }) => {
         const feature = e.features[0] as Feature<Polygon | MultiPolygon>

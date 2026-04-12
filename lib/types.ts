@@ -1,13 +1,6 @@
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 
-export type CommunityCategory =
-  | 'neighborhood_association'
-  | 'block_club'
-  | 'hoa'
-  | 'watershed'
-  | 'parish'
-  | 'school_zone'
-  | 'other'
+export type CommunityCategory = string
 
 export type Community = {
   id: string

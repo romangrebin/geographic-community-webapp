@@ -49,14 +49,21 @@ function normalizeUrl(raw: string): UrlResult {
 export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }: Props) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState<CommunityCategory>('neighborhood_association')
+  const [categoryChoice, setCategoryChoice] = useState<'neighborhood_association' | 'other'>('neighborhood_association')
+  const [categoryOther, setCategoryOther] = useState('')
   const [website, setWebsite] = useState('')
   const [websiteError, setWebsiteError] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const category: CommunityCategory =
+    categoryChoice === 'neighborhood_association'
+      ? 'neighborhood_association'
+      : categoryOther.trim() || 'other'
+
   const hasContact = website.trim() !== '' || email.trim() !== ''
-  const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError
+  const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError &&
+    (categoryChoice !== 'other' || categoryOther.trim() !== '')
 
   const validateWebsite = () => {
     const result = normalizeUrl(website)
@@ -116,20 +123,41 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as CommunityCategory)}
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="neighborhood_association">Neighborhood Association</option>
-            <option value="block_club">Block Club</option>
-            <option value="hoa">HOA</option>
-            <option value="watershed">Watershed</option>
-            <option value="parish">Parish</option>
-            <option value="school_zone">School Zone</option>
-            <option value="other">Other</option>
-          </select>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryChoice('neighborhood_association')}
+              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                categoryChoice === 'neighborhood_association'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Neighborhood Association
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryChoice('other')}
+              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                categoryChoice === 'other'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Other
+            </button>
+          </div>
+          {categoryChoice === 'other' && (
+            <input
+              type="text"
+              value={categoryOther}
+              onChange={(e) => setCategoryOther(e.target.value)}
+              placeholder="e.g. Block Club, Watershed District…"
+              className="mt-2 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          )}
         </div>
 
         <div>

@@ -108,4 +108,13 @@ export class SupabaseCommunityRepository implements CommunityRepository {
     if (error) throw new Error(error.message)
     return rowToCommunity(data)
   }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.client
+      .from('communities')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw new Error(error.message)
+  }
 }

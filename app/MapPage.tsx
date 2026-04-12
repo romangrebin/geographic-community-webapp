@@ -13,7 +13,8 @@ import Link from 'next/link'
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 
-const MAX_AREA_KM2 = 1000
+const MAX_AREA_KM2 = 40
+const TIER2_THRESHOLD = 100
 
 type Mode =
   | { type: 'explore' }
@@ -24,23 +25,29 @@ type Props = {
   initialCommunities: Community[]
   initialSelectedCommunity?: Community | null
   initialMode?: 'explore' | 'draw'
+  initialLat?: number | null
+  initialLng?: number | null
 }
 
 export default function MapPage({
   initialCommunities,
   initialSelectedCommunity = null,
   initialMode = 'explore',
+  initialLat = null,
+  initialLng = null,
 }: Props) {
   const [communities, setCommunities] = useState<Community[]>(initialCommunities)
   const [mode, setMode] = useState<Mode>(
     initialMode === 'draw' ? { type: 'draw' } : { type: 'explore' }
   )
-  const [clickMarker, setClickMarker] = useState<{ lat: number; lng: number } | null>(null)
+  const [clickMarker, setClickMarker] = useState<{ lat: number; lng: number } | null>(
+    initialLat != null && initialLng != null ? { lat: initialLat, lng: initialLng } : null
+  )
 
   // Sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState(Boolean(initialSelectedCommunity))
+  const [sidebarOpen, setSidebarOpen] = useState(Boolean(initialSelectedCommunity) || (initialLat != null && initialLng != null))
   const [sidebarLoading, setSidebarLoading] = useState(false)
-  const [clicked, setClicked] = useState(Boolean(initialSelectedCommunity))
+  const [clicked, setClicked] = useState(Boolean(initialSelectedCommunity) || (initialLat != null && initialLng != null))
   const [clickedCommunities, setClickedCommunities] = useState<Community[]>(
     initialSelectedCommunity ? [initialSelectedCommunity] : []
   )
@@ -48,6 +55,8 @@ export default function MapPage({
     initialSelectedCommunity
   )
   const [hoveredCommunity, setHoveredCommunity] = useState<Community | null>(null)
+  const [showAbout, setShowAbout] = useState(false)
+  const [browseMode, setBrowseMode] = useState(false)
 
   // Register state
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -55,7 +64,21 @@ export default function MapPage({
   const [mapReady, setMapReady] = useState(false)
   const mapRef = useRef<MapHandle>(null)
 
-  // Keep the browser URL in sync with the current app state, without full reload
+  // If page loaded with a lat/lng in the URL, run the point query once map is ready
+  const initialQueryDoneRef = useRef(false)
+  useEffect(() => {
+    if (!mapReady || initialQueryDoneRef.current) return
+    if (initialLat == null || initialLng == null) return
+    initialQueryDoneRef.current = true
+    setSidebarLoading(true)
+    fetch(`/api/communities/at-point?lat=${initialLat}&lng=${initialLng}`)
+      .then((r) => r.json())
+      .then((data) => setClickedCommunities(data))
+      .catch(() => setClickedCommunities([]))
+      .finally(() => setSidebarLoading(false))
+  }, [mapReady, initialLat, initialLng])
+
+  // Keep the browser URL in sync with app state
   useEffect(() => {
     if (typeof window === 'undefined') return
     let target = '/'
@@ -63,11 +86,13 @@ export default function MapPage({
       target = '/register'
     } else if (selectedCommunity) {
       target = `/c/${selectedCommunity.slug}`
+    } else if (clickMarker) {
+      target = `/?lat=${clickMarker.lat.toFixed(6)}&lng=${clickMarker.lng.toFixed(6)}`
     }
-    if (window.location.pathname !== target) {
+    if (window.location.pathname + window.location.search !== target) {
       window.history.replaceState(null, '', target)
     }
-  }, [selectedCommunity, mode.type])
+  }, [selectedCommunity, mode.type, clickMarker])
 
   // When a specific community is deep-linked, fly to it once the map is ready
   useEffect(() => {
@@ -90,6 +115,8 @@ export default function MapPage({
     setClicked(true)
     setSidebarOpen(true)
     setSelectedCommunity(null)
+    setShowAbout(false)
+    setBrowseMode(false)
     try {
       const res = await fetch(`/api/communities/at-point?lat=${lat}&lng=${lng}`)
       const data = await res.json()
@@ -105,6 +132,8 @@ export default function MapPage({
     setSidebarOpen(false)
     setSelectedCommunity(null)
     setClickMarker(null)
+    setShowAbout(false)
+    setBrowseMode(false)
   }, [])
 
   const handleAddressSelect = useCallback((lat: number, lng: number) => {
@@ -118,6 +147,7 @@ export default function MapPage({
   // Geolocation on first load (skip if a saved view or deep-linked community)
   useEffect(() => {
     if (initialSelectedCommunity) return
+    if (initialLat != null) return
     if (typeof window === 'undefined') return
     const hasSavedView = localStorage.getItem('gc.mapView') !== null
     if (hasSavedView) return
@@ -130,7 +160,7 @@ export default function MapPage({
       },
       () => {}
     )
-  }, [handleMapClick, initialSelectedCommunity])
+  }, [handleMapClick, initialSelectedCommunity, initialLat])
 
   const handleDrawComplete = useCallback((feature: Feature<Polygon | MultiPolygon>) => {
     if (!booleanValid(feature)) {
@@ -174,7 +204,6 @@ export default function MapPage({
       setClicked(true)
       setSidebarOpen(true)
 
-      // Fly to the new community
       const map = mapRef.current?.getMap()
       if (map) {
         const c = centroid(community.geojson).geometry.coordinates
@@ -185,37 +214,89 @@ export default function MapPage({
     }
   }, [mode])
 
+  const handleSelectCommunity = useCallback((c: Community) => {
+    setSelectedCommunity(c)
+    setBrowseMode(false)
+    const map = mapRef.current?.getMap()
+    if (map) {
+      const [minLng, minLat, maxLng, maxLat] = turfBbox(c.geojson) as [number, number, number, number]
+      map.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: { top: 80, bottom: 80, left: 80, right: 360 }, duration: 600, maxZoom: 15 }
+      )
+    }
+  }, [])
+
+  const handleDeleteCommunity = useCallback(async (id: string) => {
+    const res = await fetch(`/api/communities/${id}`, { method: 'DELETE' })
+    if (!res.ok) return
+    setCommunities((prev) => prev.filter((c) => c.id !== id))
+    setSelectedCommunity(null)
+    setSidebarOpen(false)
+    setClickMarker(null)
+  }, [])
+
   const isDrawActive = mode.type === 'draw' || mode.type === 'form'
-  const isPanelOpen = mode.type === 'form' || sidebarOpen
+  const isPanelOpen = mode.type === 'form' || sidebarOpen || showAbout || browseMode
+
+  const navBtnClass = 'shrink-0 text-sm px-3 py-1.5 rounded-lg transition-colors cursor-pointer'
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-50">
-      {/* Header — natural height, shrink-0 so it never collapses */}
-      <header className="shrink-0 z-30 flex items-center gap-3 px-4 py-2 bg-white border-b">
-        <Link href="/" onClick={() => setSelectedCommunity(null)} className="font-bold text-gray-900 text-base tracking-tight shrink-0">
+      {/* Tier 2 nudge banner */}
+      {communities.length >= TIER2_THRESHOLD && (
+        <div className="shrink-0 z-40 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 text-center">
+          🏗 {communities.length} communities registered — someone tell Roman to tackle Tier 2 of the project plan to improve speed and security.
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="shrink-0 z-30 flex items-center gap-2 px-4 py-2 bg-white border-b">
+        <Link
+          href="/"
+          onClick={() => { setSelectedCommunity(null); setShowAbout(false); setBrowseMode(false) }}
+          className="font-bold text-gray-900 text-base tracking-tight shrink-0 cursor-pointer"
+        >
           geographic<span className="text-blue-600">.</span>community
         </Link>
         <div className="flex-1 max-w-sm">
           <AddressSearch onSelect={handleAddressSelect} />
         </div>
+
+        {mode.type === 'explore' && (
+          <button
+            onClick={() => { setBrowseMode(true); setSidebarOpen(true); setShowAbout(false); setSelectedCommunity(null) }}
+            className={`${navBtnClass} border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300`}
+          >
+            All Communities
+          </button>
+        )}
+
+        <button
+          onClick={() => { setShowAbout(true); setSidebarOpen(true); setBrowseMode(false) }}
+          className={`${navBtnClass} border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300`}
+        >
+          About
+        </button>
+
         {mode.type === 'explore' ? (
           <button
-            onClick={() => { setMode({ type: 'draw' }); setSidebarOpen(false); setSelectedCommunity(null) }}
-            className="shrink-0 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => { setMode({ type: 'draw' }); setSidebarOpen(false); setSelectedCommunity(null); setShowAbout(false); setBrowseMode(false) }}
+            className={`${navBtnClass} bg-blue-600 text-white hover:bg-blue-700`}
           >
-            + Register
+            + Add A New Community
           </button>
         ) : (
           <button
             onClick={() => { setMode({ type: 'explore' }); setSubmitError(null) }}
-            className="shrink-0 text-sm border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700`}
           >
             Cancel
           </button>
         )}
       </header>
 
-      {/* Everything below the header lives in this flex-1 container */}
+      {/* Everything below the header */}
       <div className="flex-1 relative overflow-hidden">
         {/* Draw mode instruction banner */}
         {mode.type === 'draw' && (
@@ -223,16 +304,12 @@ export default function MapPage({
             {mode.error ? (
               <span className="text-red-600">{mode.error}</span>
             ) : (
-              <ol className="space-y-1 list-decimal list-inside">
-                <li>Click the <strong>polygon tool</strong> in the top-left toolbar</li>
-                <li>Click the map to place points around your community</li>
-                <li>Click the <strong>first point</strong> again (or double-click) to close the shape</li>
-              </ol>
+              <span>Click the map to place points around your community boundary. Double-click (or click the first point) to finish.</span>
             )}
           </div>
         )}
 
-        {/* Map — fills the flex-1 container */}
+        {/* Map */}
         <div className="absolute inset-0">
           <Map
             ref={mapRef}
@@ -263,25 +340,30 @@ export default function MapPage({
             ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}
           `}
         >
-        {mode.type === 'form' ? (
-          <RegisterSheet
-            geojson={mode.geojson}
-            onSubmit={handleRegisterSubmit}
-            onBack={() => setMode({ type: 'draw' })}
-            submitError={submitError}
-          />
-        ) : (
-          <CommunitySidebar
-            communities={clickedCommunities}
-            loading={sidebarLoading}
-            clicked={clicked}
-            selectedCommunity={selectedCommunity}
-            onSelectCommunity={(c) => { setSelectedCommunity(c); setClickMarker(null) }}
-            onBack={() => setSelectedCommunity(null)}
-            onClose={closeSidebar}
-          />
-        )}
-      </div>
+          {mode.type === 'form' ? (
+            <RegisterSheet
+              geojson={mode.geojson}
+              onSubmit={handleRegisterSubmit}
+              onBack={() => setMode({ type: 'draw' })}
+              submitError={submitError}
+            />
+          ) : (
+            <CommunitySidebar
+              communities={clickedCommunities}
+              allCommunities={communities}
+              loading={sidebarLoading}
+              clicked={clicked}
+              selectedCommunity={selectedCommunity}
+              showAbout={showAbout}
+              browseMode={browseMode}
+              onBrowseModeChange={setBrowseMode}
+              onSelectCommunity={handleSelectCommunity}
+              onDeleteCommunity={handleDeleteCommunity}
+              onBack={() => setSelectedCommunity(null)}
+              onClose={closeSidebar}
+            />
+          )}
+        </div>
 
         {/* Bottom sheet (mobile) */}
         {isPanelOpen && (
@@ -296,10 +378,15 @@ export default function MapPage({
             ) : (
               <CommunitySidebar
                 communities={clickedCommunities}
+                allCommunities={communities}
                 loading={sidebarLoading}
                 clicked={clicked}
                 selectedCommunity={selectedCommunity}
-                onSelectCommunity={(c) => { setSelectedCommunity(c); setClickMarker(null) }}
+                showAbout={showAbout}
+                browseMode={browseMode}
+                onBrowseModeChange={setBrowseMode}
+                onSelectCommunity={handleSelectCommunity}
+                onDeleteCommunity={handleDeleteCommunity}
                 onBack={() => setSelectedCommunity(null)}
                 onClose={closeSidebar}
               />

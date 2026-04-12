@@ -26,3 +26,7 @@ export function updateCommunity(id: string, input: Partial<CommunityInput>): Pro
   // Not exposed via a public route in Tier 1 — no auth yet.
   return db.update(id, input)
 }
+
+export function deleteCommunity(id: string): Promise<void> {
+  return db.delete(id)
+}

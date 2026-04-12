@@ -11,4 +11,5 @@ export interface CommunityRepository {
   getBySlug(slug: string): Promise<Community | null>
   list(): Promise<Community[]>
   update(id: string, input: Partial<CommunityInput>): Promise<Community>
+  delete(id: string): Promise<void>
 }

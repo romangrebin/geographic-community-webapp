@@ -93,4 +93,11 @@ export class JsonFileCommunityRepository implements CommunityRepository {
     write(store)
     return updated
   }
+
+  async delete(id: string): Promise<void> {
+    const store = read()
+    if (!store.has(id)) throw new Error('Community not found')
+    store.delete(id)
+    write(store)
+  }
 }
