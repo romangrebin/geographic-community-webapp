@@ -139,10 +139,12 @@ export default function MapPage(props: Props) {
           <Link
             href="/"
             onClick={() => dispatch({ type: 'CLOSE_PANEL' })}
-            className="font-bold text-ink text-base tracking-tight shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+            className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <span className="md:hidden">g<span className="text-accent">.</span>community</span>
-            <span className="hidden md:inline">geographic<span className="text-accent">.</span>community</span>
+            <img src="/icon.svg" alt="geographic.community" className="md:hidden w-8 h-8 rounded-lg" />
+            <span className="hidden md:inline font-bold text-ink text-base tracking-tight">
+              geographic<span className="text-accent">.</span>community
+            </span>
           </Link>
           <div className="flex-1 max-w-sm">
             <AddressSearch onSelect={handleAddressSelect} />

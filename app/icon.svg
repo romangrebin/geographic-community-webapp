@@ -1,0 +1,6 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#0d9488"/>
+  <text x="7" y="20" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="20" fill="white">g</text>
+  <!-- map pin sitting at baseline like a period -->
+  <path d="M 21 26 Q 18.5 24 18.5 22 A 2.5 2.5 0 0 1 23.5 22 Q 23.5 24 21 26 Z" fill="white"/>
+</svg>
