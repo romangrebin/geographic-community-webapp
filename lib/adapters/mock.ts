@@ -148,4 +148,9 @@ export class MockCommunityRepository implements CommunityRepository {
     store.set(id, updated)
     return updated
   }
+
+  async delete(id: string): Promise<void> {
+    if (!store.has(id)) throw new Error('Community not found')
+    store.delete(id)
+  }
 }
