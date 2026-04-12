@@ -239,10 +239,10 @@ export default function MapPage({
   const isDrawActive = mode.type === 'draw' || mode.type === 'form'
   const isPanelOpen = mode.type === 'form' || sidebarOpen || showAbout || browseMode
 
-  const navBtnClass = 'shrink-0 text-sm px-3 py-1.5 rounded-lg transition-colors cursor-pointer'
+  const navBtnClass = 'shrink-0 text-sm px-3 py-1.5 rounded-lg transition-colors cursor-pointer font-medium'
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-50">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas">
       {/* Tier 2 nudge banner */}
       {communities.length >= TIER2_THRESHOLD && (
         <div className="shrink-0 z-40 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 text-center">
@@ -251,13 +251,13 @@ export default function MapPage({
       )}
 
       {/* Header */}
-      <header className="shrink-0 z-30 flex items-center gap-2 px-4 py-2 bg-white border-b">
+      <header className="shrink-0 z-30 flex items-center gap-2 px-4 py-2.5 bg-panel border-b border-line shadow-sm">
         <Link
           href="/"
           onClick={() => { setSelectedCommunity(null); setShowAbout(false); setBrowseMode(false) }}
-          className="font-bold text-gray-900 text-base tracking-tight shrink-0 cursor-pointer"
+          className="font-bold text-ink text-base tracking-tight shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          geographic<span className="text-blue-600">.</span>community
+          geographic<span className="text-accent">.</span>community
         </Link>
         <div className="flex-1 max-w-sm">
           <AddressSearch onSelect={handleAddressSelect} />
@@ -266,7 +266,7 @@ export default function MapPage({
         {mode.type === 'explore' && (
           <button
             onClick={() => { setBrowseMode(true); setSidebarOpen(true); setShowAbout(false); setSelectedCommunity(null) }}
-            className={`${navBtnClass} border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300`}
+            className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
           >
             All Communities
           </button>
@@ -274,22 +274,22 @@ export default function MapPage({
 
         <button
           onClick={() => { setShowAbout(true); setSidebarOpen(true); setBrowseMode(false) }}
-          className={`${navBtnClass} border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300`}
+          className={`${navBtnClass} border border-line text-ink-3 hover:bg-chip hover:border-line-input`}
         >
           About
         </button>
 
-        {mode.type === 'explore' ? (
+{mode.type === 'explore' ? (
           <button
             onClick={() => { setMode({ type: 'draw' }); setSidebarOpen(false); setSelectedCommunity(null); setShowAbout(false); setBrowseMode(false) }}
-            className={`${navBtnClass} bg-blue-600 text-white hover:bg-blue-700`}
+            className={`${navBtnClass} bg-accent text-white hover:bg-accent-hi shadow-sm`}
           >
             + Add A New Community
           </button>
         ) : (
           <button
             onClick={() => { setMode({ type: 'explore' }); setSubmitError(null) }}
-            className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700`}
+            className={`${navBtnClass} bg-red-600 text-white hover:bg-red-700 shadow-sm`}
           >
             Cancel
           </button>
@@ -300,9 +300,9 @@ export default function MapPage({
       <div className="flex-1 relative overflow-hidden">
         {/* Draw mode instruction banner */}
         {mode.type === 'draw' && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white rounded-xl shadow-lg px-4 py-3 text-sm text-gray-700 border max-w-md pointer-events-none">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-panel rounded-xl shadow-lg px-4 py-3 text-sm text-ink-2 border border-line max-w-md pointer-events-none">
             {mode.error ? (
-              <span className="text-red-600">{mode.error}</span>
+              <span className="text-red-500 font-medium">{mode.error}</span>
             ) : (
               <span>Click the map to place points around your community boundary. Double-click (or click the first point) to finish.</span>
             )}
@@ -327,7 +327,7 @@ export default function MapPage({
 
         {/* Hover tooltip */}
         {hoveredCommunity && mode.type === 'explore' && !selectedCommunity && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-white/95 shadow-lg rounded-lg px-3 py-1.5 text-sm font-medium pointer-events-none">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-panel/95 shadow-lg border border-line rounded-xl px-3 py-1.5 text-sm font-semibold text-ink pointer-events-none">
             {hoveredCommunity.name}
           </div>
         )}
@@ -335,7 +335,7 @@ export default function MapPage({
         {/* Right panel (desktop) */}
         <div
           className={`
-            hidden md:flex flex-col absolute right-0 top-0 bottom-0 w-80 bg-white border-l shadow-xl z-20
+            hidden md:flex flex-col absolute right-0 top-0 bottom-0 w-80 bg-panel border-l border-line shadow-xl z-20
             transition-transform duration-200
             ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}
           `}
@@ -367,7 +367,7 @@ export default function MapPage({
 
         {/* Bottom sheet (mobile) */}
         {isPanelOpen && (
-          <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 h-1/2 rounded-t-2xl shadow-2xl border-t bg-white overflow-hidden">
+          <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 h-1/2 rounded-t-2xl shadow-2xl border-t border-line bg-panel overflow-hidden">
             {mode.type === 'form' ? (
               <RegisterSheet
                 geojson={mode.geojson}

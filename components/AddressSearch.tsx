@@ -58,18 +58,18 @@ export default function AddressSearch({ onSelect }: Props) {
         onFocus={() => results.length > 0 && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search for an address…"
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        className="w-full border border-line-input rounded-lg px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-5 transition-shadow"
       />
       {loading && (
-        <div className="absolute right-3 top-2.5 text-gray-400 text-xs">Searching…</div>
+        <div className="absolute right-3 top-2 text-ink-5 text-xs">Searching…</div>
       )}
       {open && results.length > 0 && (
-        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-panel border border-line rounded-xl shadow-xl max-h-64 overflow-y-auto">
           {results.map((r, i) => (
             <li
               key={i}
               onMouseDown={() => handleSelect(r)}
-              className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b last:border-b-0 text-gray-800"
+              className="px-3 py-2.5 text-sm cursor-pointer hover:bg-accent-dim border-b border-line-sub last:border-b-0 text-ink transition-colors"
             >
               {r.display_name}
             </li>

@@ -6,7 +6,6 @@ import type { CommunityCategory } from '@/lib/types'
 import { area } from '@turf/turf'
 
 type Props = {
-  /** The drawn polygon — passed in from the parent which owns draw state */
   geojson: Feature<Polygon | MultiPolygon>
   onSubmit: (data: {
     name: string
@@ -20,23 +19,16 @@ type Props = {
 }
 
 type UrlResult =
-  | { ok: true; value: null }           // empty input — valid, no URL
-  | { ok: true; value: string }         // valid URL, normalized
-  | { ok: false; error: string }        // invalid URL
+  | { ok: true; value: null }
+  | { ok: true; value: string }
+  | { ok: false; error: string }
 
-/**
- * Accepts a URL with or without protocol, prepends https:// if missing,
- * and verifies that the result parses as a real URL with a proper hostname.
- */
 function normalizeUrl(raw: string): UrlResult {
   const trimmed = raw.trim()
   if (!trimmed) return { ok: true, value: null }
-
   const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-
   try {
     const url = new URL(withProtocol)
-    // Require at least one dot in the hostname — rules out "foo", "localhost", etc.
     if (!url.hostname.includes('.')) {
       return { ok: false, error: 'Please enter a valid website (e.g. example.com)' }
     }
@@ -45,6 +37,9 @@ function normalizeUrl(raw: string): UrlResult {
     return { ok: false, error: 'Please enter a valid website (e.g. example.com)' }
   }
 }
+
+const inputClass = 'w-full border border-line-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-4 transition-shadow'
+const labelClass = 'block text-sm font-medium text-ink-2 mb-1'
 
 export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }: Props) {
   const [name, setName] = useState('')
@@ -73,13 +68,8 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
-
     const websiteResult = normalizeUrl(website)
-    if (!websiteResult.ok) {
-      setWebsiteError(websiteResult.error)
-      return
-    }
-
+    if (!websiteResult.ok) { setWebsiteError(websiteResult.error); return }
     setSubmitting(true)
     await onSubmit({
       name: name.trim(),
@@ -94,129 +84,102 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
   const areaSqKm = (area(geojson) / 1_000_000).toFixed(2)
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-gray-400 hover:text-gray-600 text-sm"
-        >
+    <form onSubmit={handleSubmit} className="flex flex-col h-full bg-panel">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
+        <button type="button" onClick={onBack} className="text-ink-5 hover:text-ink-2 text-sm cursor-pointer transition-colors">
           ← Redraw
         </button>
-        <h2 className="font-semibold text-gray-900 flex-1">Community details</h2>
-        <span className="text-xs text-gray-400">{areaSqKm} km²</span>
+        <h2 className="font-semibold text-ink flex-1">Community details</h2>
+        <span className="text-xs text-ink-3 bg-chip px-2 py-0.5 rounded-full">{areaSqKm} km²</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name <span className="text-red-500">*</span>
-          </label>
+          <label className={labelClass}>Name <span className="text-red-500">*</span></label>
           <input
-            type="text"
-            required
-            value={name}
+            type="text" required value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Elmwood Neighborhood Association"
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <label className={labelClass}>Type</label>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setCategoryChoice('neighborhood_association')}
-              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
-                categoryChoice === 'neighborhood_association'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Neighborhood Association
-            </button>
-            <button
-              type="button"
-              onClick={() => setCategoryChoice('other')}
-              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
-                categoryChoice === 'other'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Other
-            </button>
+            {(['neighborhood_association', 'other'] as const).map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setCategoryChoice(val)}
+                className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                  categoryChoice === val
+                    ? 'bg-accent text-white border-accent shadow-sm'
+                    : 'bg-panel text-ink-2 border-line-input hover:bg-panel-2'
+                }`}
+              >
+                {val === 'neighborhood_association' ? 'Neighborhood Association' : 'Other'}
+              </button>
+            ))}
           </div>
           {categoryChoice === 'other' && (
             <input
-              type="text"
-              value={categoryOther}
+              type="text" value={categoryOther}
               onChange={(e) => setCategoryOther(e.target.value)}
               placeholder="e.g. Block Club, Watershed District…"
-              className="mt-2 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`mt-2 ${inputClass}`}
               required
             />
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
+          <label className={labelClass}>Description <span className="text-ink-5 font-normal">(optional)</span></label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             placeholder="What does your community do? How can residents get involved?"
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className={`${inputClass} resize-none`}
           />
         </div>
 
-        <div className="border rounded-xl p-4 space-y-3">
-          <p className="text-sm font-medium text-gray-700">
+        <div className="border border-line rounded-xl p-4 space-y-3 bg-panel-2">
+          <p className="text-sm font-medium text-ink-2">
             Contact <span className="text-red-500">*</span>
-            <span className="font-normal text-gray-400 ml-1">at least one</span>
+            <span className="font-normal text-ink-5 ml-1">at least one</span>
           </p>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Website</label>
+            <label className="block text-xs text-ink-4 mb-1">Website</label>
             <input
-              type="text"
-              value={website}
+              type="text" value={website}
               onChange={(e) => { setWebsite(e.target.value); if (websiteError) setWebsiteError(null) }}
               onBlur={validateWebsite}
               placeholder="example.com"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                websiteError ? 'border-red-400 focus:ring-red-500' : 'focus:ring-blue-500'
-              }`}
+              className={`${inputClass} ${websiteError ? 'border-red-400 focus:ring-red-500 focus:border-red-400' : ''}`}
             />
-            {websiteError && <p className="text-xs text-red-600 mt-1">{websiteError}</p>}
+            {websiteError && <p className="text-xs text-red-500 mt-1">{websiteError}</p>}
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="contact@example.com"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-xs text-ink-4 mb-1">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@example.com" className={inputClass} />
           </div>
           {!hasContact && (
-            <p className="text-xs text-amber-600">Provide a website or email so residents can reach you.</p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+              Provide a website or email so residents can reach you.
+            </p>
           )}
         </div>
 
         {submitError && (
-          <p className="text-sm text-red-600">{submitError}</p>
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>
         )}
       </div>
 
-      <div className="px-4 py-3 border-t shrink-0">
+      <div className="px-4 py-3 border-t border-line shrink-0">
         <button
-          type="submit"
-          disabled={!canSubmit}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit" disabled={!canSubmit}
+          className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
         >
           {submitting ? 'Registering…' : 'Register community'}
         </button>

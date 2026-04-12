@@ -128,7 +128,7 @@ CREATE TABLE communities (
 - [ ] **T1-19** Route: `/c/[slug]` - public community page
 - [ ] **T1-20** Show community name, description, category badge
 - [ ] **T1-21** Show small embedded map with the community polygon highlighted
-- [ ] **T1-22** Show contact info (website link and/or email), with appropriate `mailto:` / `href` treatment
+
 
 ---
 

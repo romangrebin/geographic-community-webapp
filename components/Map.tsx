@@ -103,6 +103,14 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     const startCenter = saved?.center ?? initialCenter
     const startZoom = saved?.zoom ?? initialZoom
 
+    const dark = false
+    const tileVariant = dark ? 'dark_matter' : 'light_all'
+    // Polygon colors — brighter for dark map backgrounds
+    const polyFill    = dark ? '#2dd4bf' : '#0d9488'
+    const polyOutline = dark ? '#2dd4bf' : '#0f766e'
+    const polyFillOpacity    = dark ? 0.18 : 0.08
+    const polyFillOpacityHover = dark ? 0.35 : 0.22
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: {
@@ -112,9 +120,9 @@ const Map = forwardRef<MapHandle, Props>(function Map(
           carto: {
             type: 'raster',
             tiles: [
-              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-              'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-              'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+              `https://a.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
+              `https://b.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
+              `https://c.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
             ],
             tileSize: 256,
             attribution: '© OpenStreetMap © CARTO',
@@ -149,8 +157,8 @@ const Map = forwardRef<MapHandle, Props>(function Map(
         type: 'fill',
         source: COMMUNITY_SOURCE,
         paint: {
-          'fill-color': '#3b82f6',
-          'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.25, 0.1],
+          'fill-color': polyFill,
+          'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], polyFillOpacityHover, polyFillOpacity],
         },
       })
 
@@ -160,8 +168,8 @@ const Map = forwardRef<MapHandle, Props>(function Map(
         type: 'line',
         source: COMMUNITY_SOURCE,
         paint: {
-          'line-color': '#2563eb',
-          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2, 1.2],
+          'line-color': polyOutline,
+          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2.5, 1.5],
         },
       })
 
