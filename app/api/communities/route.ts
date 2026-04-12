@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createCommunity } from '@/lib/communities'
-import type { CommunityInput } from '@/lib/types'
+import { validateCommunityInput, checkOrigin } from '@/lib/validation'
 
 export async function POST(req: NextRequest) {
-  let input: CommunityInput
+  if (!checkOrigin(req)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  let body: unknown
   try {
-    input = await req.json()
+    body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (!input.name?.trim()) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-  }
-  if (!input.geojson) {
-    return NextResponse.json({ error: 'Boundary (geojson) is required' }, { status: 400 })
-  }
-  if (!input.website && !input.email) {
-    return NextResponse.json({ error: 'At least one of website or email is required' }, { status: 400 })
+  const result = validateCommunityInput(body)
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
   }
 
   try {
-    const community = await createCommunity(input)
+    const community = await createCommunity(result.sanitized)
     return NextResponse.json(community, { status: 201 })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Internal server error'
-    // Detect duplicate name via unique constraint
     if (message.includes('duplicate') || message.includes('unique')) {
       return NextResponse.json({ error: 'A community with this name already exists.' }, { status: 409 })
     }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Community } from '@/lib/types'
+import type { Community, CommunityInput } from '@/lib/types'
 
 const KNOWN_CATEGORY_LABELS: Record<string, string> = {
   neighborhood_association: 'Neighborhood Association',
@@ -23,6 +23,8 @@ const closeBtn = 'text-ink-5 hover:text-ink-3 text-xl leading-none cursor-pointe
 const backBtn = 'text-ink-5 hover:text-ink-2 text-sm shrink-0 cursor-pointer transition-colors'
 const communityRow = 'w-full text-left block pl-3 pr-4 py-3 border-b border-line-sub hover:bg-panel-hover border-l-4 border-l-transparent hover:border-l-accent transition-all cursor-pointer'
 const categoryBadge = 'shrink-0 text-xs bg-accent-chip text-accent-text px-2 py-0.5 rounded-full mt-0.5 font-medium'
+const inputClass = 'w-full border border-line-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-4 transition-shadow'
+const labelClass = 'block text-xs text-ink-4 mb-1'
 
 type Props = {
   communities: Community[]
@@ -30,11 +32,16 @@ type Props = {
   loading?: boolean
   clicked?: boolean
   selectedCommunity?: Community | null
+  editingCommunity?: Community | null
   showAbout?: boolean
   browseMode?: boolean
   onBrowseModeChange?: (active: boolean) => void
   onSelectCommunity?: (c: Community) => void
   onDeleteCommunity?: (id: string) => void
+  onEditCommunity?: (c: Community) => void
+  onCancelEdit?: () => void
+  onUpdateCommunity?: (id: string, data: Partial<CommunityInput>) => Promise<void>
+  submitError?: string | null
   onBack?: () => void
   onClose?: () => void
 }
@@ -45,11 +52,16 @@ export default function CommunitySidebar({
   loading,
   clicked,
   selectedCommunity,
+  editingCommunity,
   showAbout,
   browseMode = false,
   onBrowseModeChange,
   onSelectCommunity,
   onDeleteCommunity,
+  onEditCommunity,
+  onCancelEdit,
+  onUpdateCommunity,
+  submitError,
   onBack,
   onClose,
 }: Props) {
@@ -57,12 +69,24 @@ export default function CommunitySidebar({
 
   if (showAbout) return <AboutPanel onClose={onClose} />
 
+  if (editingCommunity) {
+    return (
+      <EditCommunityPanel
+        community={editingCommunity}
+        onCancel={onCancelEdit}
+        onSave={onUpdateCommunity}
+        submitError={submitError ?? null}
+      />
+    )
+  }
+
   if (selectedCommunity) {
     return (
       <CommunityDetail
         community={selectedCommunity}
         onBack={onBack}
         onDelete={onDeleteCommunity ? (id) => onDeleteCommunity(id) : undefined}
+        onEdit={onEditCommunity ? () => onEditCommunity(selectedCommunity) : undefined}
       />
     )
   }
@@ -158,10 +182,12 @@ function CommunityDetail({
   community,
   onBack,
   onDelete,
+  onEdit,
 }: {
   community: Community
   onBack?: () => void
   onDelete?: (id: string) => void
+  onEdit?: () => void
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmName, setConfirmName] = useState('')
@@ -218,16 +244,26 @@ function CommunityDetail({
           Registered {new Date(community.createdAt).toLocaleDateString()}
         </p>
 
-        {onDelete && !confirmingDelete && (
-          <div className="pt-2 border-t border-line-sub">
+        {/* Edit / Delete actions */}
+        <div className="pt-2 border-t border-line-sub space-y-2">
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="text-xs text-accent hover:text-accent-hi transition-colors cursor-pointer font-medium"
+            >
+              Edit this community…
+            </button>
+          )}
+
+          {onDelete && !confirmingDelete && (
             <button
               onClick={() => setConfirmingDelete(true)}
-              className="text-xs text-ink-5 hover:text-red-500 transition-colors cursor-pointer"
+              className="block text-xs text-ink-5 hover:text-red-500 transition-colors cursor-pointer"
             >
               Delete this community…
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {confirmingDelete && (
           <div className="border border-red-200 rounded-xl p-4 space-y-3 bg-red-50">
@@ -261,6 +297,150 @@ function CommunityDetail({
         )}
       </div>
     </div>
+  )
+}
+
+function EditCommunityPanel({
+  community,
+  onCancel,
+  onSave,
+  submitError,
+}: {
+  community: Community
+  onCancel?: () => void
+  onSave?: (id: string, data: Partial<CommunityInput>) => Promise<void>
+  submitError: string | null
+}) {
+  const [name, setName] = useState(community.name)
+  const [description, setDescription] = useState(community.description ?? '')
+  const [category, setCategory] = useState(community.category)
+  const [categoryOther, setCategoryOther] = useState(
+    community.category === 'neighborhood_association' ? '' : community.category
+  )
+  const [categoryChoice, setCategoryChoice] = useState<'neighborhood_association' | 'other'>(
+    community.category === 'neighborhood_association' ? 'neighborhood_association' : 'other'
+  )
+  const [website, setWebsite] = useState(community.website ?? '')
+  const [email, setEmail] = useState(community.email ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const resolvedCategory = categoryChoice === 'neighborhood_association'
+    ? 'neighborhood_association'
+    : categoryOther.trim() || 'other'
+
+  const hasContact = website.trim() !== '' || email.trim() !== ''
+  const canSave = name.trim() !== '' && hasContact && !saving &&
+    (categoryChoice !== 'other' || categoryOther.trim() !== '')
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave || !onSave) return
+    setSaving(true)
+    await onSave(community.id, {
+      name: name.trim(),
+      description: description.trim() || null,
+      category: resolvedCategory,
+      website: website.trim() || null,
+      email: email.trim() || null,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={handleSave} className="flex flex-col h-full bg-panel">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
+        {onCancel && <button type="button" onClick={onCancel} className={backBtn}>← Cancel</button>}
+        <h2 className="font-semibold text-ink flex-1">Edit Community</h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div>
+          <label className={labelClass}>Name <span className="text-red-500">*</span></label>
+          <input
+            type="text" required value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Type</label>
+          <div className="flex gap-2">
+            {(['neighborhood_association', 'other'] as const).map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setCategoryChoice(val)}
+                className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                  categoryChoice === val
+                    ? 'bg-accent text-white border-accent shadow-sm'
+                    : 'bg-panel text-ink-2 border-line-input hover:bg-panel-2'
+                }`}
+              >
+                {val === 'neighborhood_association' ? 'Neighborhood Assoc.' : 'Other'}
+              </button>
+            ))}
+          </div>
+          {categoryChoice === 'other' && (
+            <input
+              type="text" value={categoryOther}
+              onChange={(e) => setCategoryOther(e.target.value)}
+              placeholder="e.g. Block Club, Watershed District…"
+              className={`mt-2 ${inputClass}`}
+              required
+            />
+          )}
+        </div>
+
+        <div>
+          <label className={labelClass}>Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className={`${inputClass} resize-none`}
+          />
+        </div>
+
+        <div className="border border-line rounded-xl p-4 space-y-3 bg-panel-2">
+          <p className="text-sm font-medium text-ink-2">
+            Contact <span className="text-red-500">*</span>
+            <span className="font-normal text-ink-5 ml-1">at least one</span>
+          </p>
+          <div>
+            <label className={labelClass}>Website</label>
+            <input
+              type="text" value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="example.com"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@example.com" className={inputClass} />
+          </div>
+          {!hasContact && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+              Provide a website or email so residents can reach you.
+            </p>
+          )}
+        </div>
+
+        {submitError && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>
+        )}
+      </div>
+
+      <div className="px-4 py-3 border-t border-line shrink-0">
+        <button
+          type="submit" disabled={!canSave}
+          className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+        >
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </form>
   )
 }
 

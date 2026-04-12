@@ -28,8 +28,6 @@ type Props = {
   selectedCommunityId?: string | null
   clickMarker?: { lat: number; lng: number } | null
   className?: string
-  initialCenter?: [number, number]
-  initialZoom?: number
 }
 
 const COMMUNITY_SOURCE = 'communities'
@@ -78,8 +76,6 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     selectedCommunityId = null,
     clickMarker = null,
     className = '',
-    initialCenter = DEFAULT_CENTER,
-    initialZoom = DEFAULT_ZOOM,
   },
   ref
 ) {
@@ -100,16 +96,13 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     if (!containerRef.current || mapRef.current) return
 
     const saved = loadSavedView()
-    const startCenter = saved?.center ?? initialCenter
-    const startZoom = saved?.zoom ?? initialZoom
+    const startCenter = saved?.center ?? DEFAULT_CENTER
+    const startZoom = saved?.zoom ?? DEFAULT_ZOOM
 
-    const dark = false
-    const tileVariant = dark ? 'dark_matter' : 'light_all'
-    // Polygon colors — brighter for dark map backgrounds
-    const polyFill    = dark ? '#2dd4bf' : '#0d9488'
-    const polyOutline = dark ? '#2dd4bf' : '#0f766e'
-    const polyFillOpacity    = dark ? 0.18 : 0.08
-    const polyFillOpacityHover = dark ? 0.35 : 0.22
+    const polyFill = '#0d9488'
+    const polyOutline = '#0f766e'
+    const polyFillOpacity = 0.08
+    const polyFillOpacityHover = 0.22
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -120,9 +113,9 @@ const Map = forwardRef<MapHandle, Props>(function Map(
           carto: {
             type: 'raster',
             tiles: [
-              `https://a.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
-              `https://b.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
-              `https://c.basemaps.cartocdn.com/${tileVariant}/{z}/{x}/{y}.png`,
+              `https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
+              `https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
+              `https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
             ],
             tileSize: 256,
             attribution: '© OpenStreetMap © CARTO',

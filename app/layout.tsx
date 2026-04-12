@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import './globals.css'
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-<body className="h-full">{children}</body>
+<body className="h-full"><ErrorBoundary>{children}</ErrorBoundary></body>
     </html>
   )
 }
