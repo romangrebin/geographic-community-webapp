@@ -331,6 +331,40 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     }
   }, [])
 
+  // ── Stale-closure guard for the ESC handler ───────────
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state })
+
+  // ── ESC key: retreat one level in the panel stack ─────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+
+      // Let the browser handle ESC when the user is typing
+      const tag = (document.activeElement as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      const { panel, drawMode } = stateRef.current
+
+      if (panel.type === 'edit') {
+        dispatch({ type: 'CANCEL_EDIT' })
+      } else if (panel.type === 'detail') {
+        dispatch({ type: 'BACK_TO_LIST' })
+      } else if (
+        panel.type === 'explore' ||
+        panel.type === 'about' ||
+        panel.type === 'browse'
+      ) {
+        dispatch({ type: 'CLOSE_PANEL' })
+      } else if (panel.type === 'form' || drawMode !== 'off') {
+        dispatch({ type: 'CANCEL_DRAW' })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [dispatch]) // dispatch is stable; state is read via stateRef
+
   // ── URL sync (replaceState + popstate) ─────────────────
 
   useEffect(() => {
