@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { deleteCommunity, getCommunity, updateCommunity } from '@/lib/communities'
 import { validateCommunityUpdate, checkOrigin } from '@/lib/validation'
+import { getUser } from '@/lib/auth'
+
+async function checkOwnership(req: NextRequest, communityId: string): Promise<
+  | { allowed: true }
+  | { allowed: false; response: NextResponse }
+> {
+  const community = await getCommunity(communityId)
+  if (!community) {
+    return {
+      allowed: false,
+      response: NextResponse.json({ error: 'Community not found' }, { status: 404 }),
+    }
+  }
+
+  // Unclaimed communities are open to anyone
+  if (!community.claimedBy) {
+    return { allowed: true }
+  }
+
+  // Claimed: require the matching signed-in user
+  const authUser = process.env.NEXT_PUBLIC_SUPABASE_URL ? await getUser(req) : null
+  if (!authUser || authUser.id !== community.claimedBy) {
+    return {
+      allowed: false,
+      response: NextResponse.json(
+        { error: 'Only the steward can edit this community.' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { allowed: true }
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -11,6 +44,9 @@ export async function PATCH(
   }
 
   const { id } = await params
+
+  const ownershipCheck = await checkOwnership(req, id)
+  if (!ownershipCheck.allowed) return ownershipCheck.response
 
   let body: unknown
   try {
@@ -56,6 +92,10 @@ export async function DELETE(
   }
 
   const { id } = await params
+
+  const ownershipCheck = await checkOwnership(req, id)
+  if (!ownershipCheck.allowed) return ownershipCheck.response
+
   try {
     await deleteCommunity(id)
     return new NextResponse(null, { status: 204 })

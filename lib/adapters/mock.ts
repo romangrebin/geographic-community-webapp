@@ -1,6 +1,6 @@
 import slugify from 'slugify'
 import { randomUUID } from 'crypto'
-import type { CommunityRepository } from '../repository'
+import type { CommunityRepository, CreateOptions } from '../repository'
 import type { Community, CommunityInput } from '../types'
 
 /**
@@ -22,6 +22,8 @@ const SEED: Community[] = [
     category: 'neighborhood_association',
     website: 'https://example.com/wickerpark',
     email: 'hello@wickerpark.example',
+    claimedBy: null,
+    claimedAt: null,
     geojson: {
       type: 'Feature',
       properties: {},
@@ -46,6 +48,8 @@ const SEED: Community[] = [
     category: 'block_club',
     website: null,
     email: 'logansquareblock@example.com',
+    claimedBy: null,
+    claimedAt: null,
     geojson: {
       type: 'Feature',
       properties: {},
@@ -70,6 +74,8 @@ const SEED: Community[] = [
     category: 'hoa',
     website: 'https://bucktownhoa.example',
     email: null,
+    claimedBy: null,
+    claimedAt: null,
     geojson: {
       type: 'Feature',
       properties: {},
@@ -102,7 +108,7 @@ function deriveUniqueSlug(name: string): string {
 }
 
 export class MockCommunityRepository implements CommunityRepository {
-  async create(input: CommunityInput): Promise<Community> {
+  async create(input: CommunityInput, options?: CreateOptions): Promise<Community> {
     if (!input.website && !input.email) {
       throw new Error('At least one of website or email is required')
     }
@@ -116,6 +122,8 @@ export class MockCommunityRepository implements CommunityRepository {
       id: randomUUID(),
       slug: deriveUniqueSlug(input.name),
       createdAt: new Date().toISOString(),
+      claimedBy: options?.claimedBy ?? null,
+      claimedAt: options?.claimedBy ? new Date().toISOString() : null,
       ...input,
     }
     store.set(community.id, community)
@@ -153,4 +161,5 @@ export class MockCommunityRepository implements CommunityRepository {
     if (!store.has(id)) throw new Error('Community not found')
     store.delete(id)
   }
+
 }

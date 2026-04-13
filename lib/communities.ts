@@ -1,4 +1,5 @@
 import type { Community, CommunityInput } from './types'
+import type { CreateOptions } from './repository'
 import { db } from './db'
 
 /**
@@ -6,8 +7,8 @@ import { db } from './db'
  * Implementations live in lib/adapters/; swap the adapter in lib/db.ts.
  */
 
-export function createCommunity(input: CommunityInput): Promise<Community> {
-  return db.create(input)
+export function createCommunity(input: CommunityInput, options?: CreateOptions): Promise<Community> {
+  return db.create(input, options)
 }
 
 export function getCommunity(id: string): Promise<Community | null> {

@@ -13,18 +13,21 @@ export type MapHandle = {
 
 type DrawInstance = {
   getAll: () => { features: unknown[] }
-  add: (f: unknown) => void
+  add: (f: unknown) => string[]
   deleteAll: () => void
-  changeMode: (mode: string) => void
+  changeMode: (mode: string, options?: Record<string, unknown>) => void
 }
 
 type Props = {
   communities?: Community[]
   onMapClick?: (lat: number, lng: number) => void
-  onCommunityHover?: (community: Community | null) => void
+  onCommunityHover?: (communities: Community[]) => void
   onReady?: () => void
   drawActive?: boolean
   onDrawComplete?: (feature: Feature<Polygon | MultiPolygon>) => void
+  editGeojson?: Feature<Polygon | MultiPolygon> | null
+  /** When set, this community is excluded from the fill layer (draw control renders it instead). */
+  editingCommunityId?: string | null
   selectedCommunityId?: string | null
   clickMarker?: { lat: number; lng: number } | null
   className?: string
@@ -73,6 +76,8 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     onReady,
     drawActive = false,
     onDrawComplete,
+    editGeojson = null,
+    editingCommunityId = null,
     selectedCommunityId = null,
     clickMarker = null,
     className = '',
@@ -83,7 +88,7 @@ const Map = forwardRef<MapHandle, Props>(function Map(
   const mapRef = useRef<maplibregl.Map | null>(null)
   const drawRef = useRef<DrawInstance | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
-  const hoveredIdRef = useRef<string | null>(null)
+  const hoveredIdsRef = useRef<string[]>([])
   const selectedIdRef = useRef<string | null>(null)
   const [mapReady, setMapReady] = useState(false)
 
@@ -233,7 +238,8 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sync community polygons whenever data changes or map becomes ready
+  // Sync community polygons whenever data changes or map becomes ready.
+  // Exclude the community currently being vertex-edited (draw control renders it).
   useEffect(() => {
     if (!mapReady || !mapRef.current) return
     const source = mapRef.current.getSource(COMMUNITY_SOURCE) as maplibregl.GeoJSONSource | undefined
@@ -241,13 +247,15 @@ const Map = forwardRef<MapHandle, Props>(function Map(
 
     source.setData({
       type: 'FeatureCollection',
-      features: communities.map((c) => ({
-        ...c.geojson,
-        id: c.id,
-        properties: { ...c.geojson.properties, communityId: c.id, communityName: c.name },
-      })),
+      features: communities
+        .filter((c) => c.id !== editingCommunityId)
+        .map((c) => ({
+          ...c.geojson,
+          id: c.id,
+          properties: { ...c.geojson.properties, communityId: c.id, communityName: c.name },
+        })),
     })
-  }, [communities, mapReady])
+  }, [communities, editingCommunityId, mapReady])
 
   // Update the selected-layer filter when selectedCommunityId changes
   useEffect(() => {
@@ -302,13 +310,25 @@ const Map = forwardRef<MapHandle, Props>(function Map(
       }
       const draw = new MaplibreDraw({
         displayControlsDefault: false,
-        controls: { trash: true },
+        // Suppress trash when editing an existing polygon — deleting the feature
+        // would leave the community with no boundary. Trash is only useful when
+        // drawing a new polygon from scratch so the user can start over.
+        controls: editGeojson ? {} : { trash: true },
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.addControl(draw as any, 'top-left')
       drawRef.current = draw
-      // Immediately activate polygon drawing so the user doesn't need an extra click
-      draw.changeMode('draw_polygon')
+
+      if (editGeojson) {
+        // Edit-boundary mode: load existing polygon and enter vertex editing
+        const ids = draw.add(editGeojson)
+        if (ids.length > 0) {
+          draw.changeMode('direct_select', { featureId: ids[0] })
+        }
+      } else {
+        // New polygon mode
+        draw.changeMode('draw_polygon')
+      }
 
       const onCreate = (e: { features: unknown[] }) => {
         const feature = e.features[0] as Feature<Polygon | MultiPolygon>
@@ -332,7 +352,7 @@ const Map = forwardRef<MapHandle, Props>(function Map(
         }
       }
     }
-  }, [drawActive, mapReady, onDrawComplete])
+  }, [drawActive, editGeojson, mapReady, onDrawComplete])
 
   // Map click handler
   useEffect(() => {
@@ -347,50 +367,42 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     return () => { map.off('click', handler) }
   }, [onMapClick, drawActive, mapReady])
 
-  // Hover handler
+  // Hover handler — uses queryRenderedFeatures on every mousemove so the tooltip
+  // reliably clears when the cursor moves to empty space, and naturally handles
+  // multiple overlapping community polygons.
   useEffect(() => {
     const map = mapRef.current
     if (!mapReady || !map) return
 
-    const mousemoveHandler = (e: maplibregl.MapLayerMouseEvent) => {
+    const mousemoveHandler = (e: maplibregl.MapMouseEvent) => {
       if (drawActive) return
-      if (e.features && e.features.length > 0) {
-        const feature = e.features[0]
-        const id = feature.properties?.communityId as string | undefined
 
-        if (hoveredIdRef.current && hoveredIdRef.current !== id) {
-          map.setFeatureState(
-            { source: COMMUNITY_SOURCE, id: hoveredIdRef.current },
-            { hover: false }
-          )
-        }
-        if (id) {
+      const features = map.queryRenderedFeatures(e.point, { layers: [COMMUNITY_FILL_LAYER] })
+
+      // Clear all previous hover states
+      hoveredIdsRef.current.forEach((id) => {
+        map.setFeatureState({ source: COMMUNITY_SOURCE, id }, { hover: false })
+      })
+
+      if (features.length > 0) {
+        const ids = features
+          .map((f) => f.properties?.communityId as string | undefined)
+          .filter((id): id is string => !!id)
+        hoveredIdsRef.current = ids
+        ids.forEach((id) => {
           map.setFeatureState({ source: COMMUNITY_SOURCE, id }, { hover: true })
-          hoveredIdRef.current = id
-          map.getCanvas().style.cursor = 'pointer'
-          onCommunityHover?.(communities.find((c) => c.id === id) ?? null)
-        }
+        })
+        map.getCanvas().style.cursor = 'pointer'
+        onCommunityHover?.(communities.filter((c) => ids.includes(c.id)))
+      } else {
+        hoveredIdsRef.current = []
+        map.getCanvas().style.cursor = ''
+        onCommunityHover?.([])
       }
     }
 
-    const mouseleaveHandler = () => {
-      if (hoveredIdRef.current) {
-        map.setFeatureState(
-          { source: COMMUNITY_SOURCE, id: hoveredIdRef.current },
-          { hover: false }
-        )
-        hoveredIdRef.current = null
-      }
-      map.getCanvas().style.cursor = ''
-      onCommunityHover?.(null)
-    }
-
-    map.on('mousemove', COMMUNITY_FILL_LAYER, mousemoveHandler)
-    map.on('mouseleave', COMMUNITY_FILL_LAYER, mouseleaveHandler)
-    return () => {
-      map.off('mousemove', COMMUNITY_FILL_LAYER, mousemoveHandler)
-      map.off('mouseleave', COMMUNITY_FILL_LAYER, mouseleaveHandler)
-    }
+    map.on('mousemove', mousemoveHandler)
+    return () => { map.off('mousemove', mousemoveHandler) }
   }, [communities, onCommunityHover, drawActive, mapReady])
 
   return <div ref={containerRef} className={`w-full h-full ${className}`} />

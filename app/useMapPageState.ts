@@ -31,13 +31,15 @@ export type State = {
   drawMode: DrawMode
   drawError: string | null
   panel: Panel
+  /** When in edit-boundary mode, this holds the polygon being edited. */
+  editGeojson: Feature<Polygon | MultiPolygon> | null
   // Point-query state — independent of which panel is showing
   pointResults: Community[]
   pointLoading: boolean
   pointClicked: boolean
   clickMarker: { lat: number; lng: number } | null
   submitError: string | null
-  hoveredCommunity: Community | null
+  hoveredCommunities: Community[]
 }
 
 type Action =
@@ -62,7 +64,9 @@ type Action =
   | { type: 'SHOW_BROWSE' }
   | { type: 'CLOSE_PANEL' }
   | { type: 'SET_SUBMIT_ERROR'; error: string | null }
-  | { type: 'SET_HOVERED'; community: Community | null }
+  | { type: 'SET_HOVERED'; communities: Community[] }
+  | { type: 'UPDATE_EDIT_GEOJSON'; geojson: Feature<Polygon | MultiPolygon> }
+  | { type: 'CLAIM_COMMUNITY'; community: Community }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -115,7 +119,7 @@ function reducer(state: State, action: Action): State {
       return { ...state, drawError: action.error }
 
     case 'CANCEL_DRAW':
-      return { ...state, drawMode: 'off', drawError: null, submitError: null, panel: { type: 'closed' } }
+      return { ...state, drawMode: 'off', drawError: null, submitError: null, editGeojson: null, panel: { type: 'closed' } }
 
     case 'SHOW_FORM':
       return { ...state, panel: { type: 'form', geojson: action.geojson } }
@@ -128,7 +132,7 @@ function reducer(state: State, action: Action): State {
         pointLoading: true,
         pointClicked: true,
         panel: { type: 'explore' },
-        hoveredCommunity: null,
+        hoveredCommunities: [],
       }
 
     case 'CLICK_LOADING':
@@ -141,7 +145,15 @@ function reducer(state: State, action: Action): State {
       return { ...state, panel: { type: 'detail', community: action.community } }
 
     case 'EDIT_COMMUNITY':
-      return { ...state, panel: { type: 'edit', community: action.community }, submitError: null }
+      // Enter edit mode: activate vertex editing on the map immediately
+      return {
+        ...state,
+        panel: { type: 'edit', community: action.community },
+        submitError: null,
+        drawMode: 'drawing',
+        drawError: null,
+        editGeojson: action.community.geojson,
+      }
 
     case 'FINISH_EDIT':
       return {
@@ -151,11 +163,17 @@ function reducer(state: State, action: Action): State {
         ),
         panel: { type: 'detail', community: action.community },
         submitError: null,
+        drawMode: 'off',
+        editGeojson: null,
       }
 
     case 'CANCEL_EDIT':
       if (state.panel.type === 'edit') {
-        return { ...state, panel: { type: 'detail', community: state.panel.community }, submitError: null }
+        // Restore the original geojson (editGeojson) in case vertices were dragged
+        const original = state.editGeojson
+          ? { ...state.panel.community, geojson: state.editGeojson }
+          : state.panel.community
+        return { ...state, panel: { type: 'detail', community: original }, submitError: null, drawMode: 'off', editGeojson: null }
       }
       return state
 
@@ -177,7 +195,32 @@ function reducer(state: State, action: Action): State {
       return { ...state, submitError: action.error }
 
     case 'SET_HOVERED':
-      return { ...state, hoveredCommunity: action.community }
+      return { ...state, hoveredCommunities: action.communities }
+
+    case 'UPDATE_EDIT_GEOJSON':
+      // Vertex drag completed while in edit-boundary mode — update the community's
+      // geojson in the edit panel but keep draw mode active so the user can drag
+      // more vertices. editGeojson keeps the ORIGINAL for cancel-restore.
+      if (state.panel.type !== 'edit') return state
+      return {
+        ...state,
+        drawError: null,
+        panel: {
+          type: 'edit',
+          community: { ...state.panel.community, geojson: action.geojson },
+        },
+      }
+
+    case 'CLAIM_COMMUNITY':
+      return {
+        ...state,
+        communities: state.communities.map((c) =>
+          c.id === action.community.id ? action.community : c
+        ),
+        panel: state.panel.type === 'detail' && state.panel.community.id === action.community.id
+          ? { type: 'detail', community: action.community }
+          : state.panel,
+      }
 
     default:
       return state
@@ -214,13 +257,14 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     communities: initialCommunities,
     drawMode: initialMode === 'draw' ? 'drawing' as DrawMode : 'off' as DrawMode,
     drawError: null,
+    editGeojson: null,
     panel: initialPanel,
     pointResults: [],
     pointLoading: hasInitialCoords,
     pointClicked: hasInitialCoords,
     clickMarker: hasInitialCoords ? { lat: initialLat, lng: initialLng } : null,
     submitError: null,
-    hoveredCommunity: null,
+    hoveredCommunities: [],
   })
 
   // ── Map callbacks ──────────────────────────────────────
@@ -247,7 +291,12 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       dispatch({ type: 'DRAW_ERROR', error: `Polygon is too large (${areaSqKm.toFixed(0)} km²). Max is ${MAX_AREA_KM2} km².` })
       return
     }
-    dispatch({ type: 'DRAW_COMPLETE', geojson: feature })
+    // If we're in edit-boundary mode, update the community's geojson in the edit panel
+    if (stateRef.current.editGeojson !== null) {
+      dispatch({ type: 'UPDATE_EDIT_GEOJSON', geojson: feature })
+    } else {
+      dispatch({ type: 'DRAW_COMPLETE', geojson: feature })
+    }
   }, [])
 
   const handleAddressSelect = useCallback((lat: number, lng: number) => {
@@ -314,11 +363,17 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
 
   const handleUpdateCommunity = useCallback(async (id: string, data: Partial<CommunityInput>) => {
     dispatch({ type: 'SET_SUBMIT_ERROR', error: null })
+    // If the community's geojson was edited via edit-boundary mode, include it
+    const editPanel = stateRef.current.panel
+    const payload: Partial<CommunityInput> =
+      editPanel.type === 'edit' && editPanel.community.id === id
+        ? { ...data, geojson: editPanel.community.geojson }
+        : data
     try {
       const res = await fetch(`/api/communities/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const body = await res.json()
@@ -326,6 +381,20 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       }
       const updated: Community = await res.json()
       dispatch({ type: 'FINISH_EDIT', community: updated })
+    } catch (e) {
+      dispatch({ type: 'SET_SUBMIT_ERROR', error: e instanceof Error ? e.message : 'An unexpected error occurred' })
+    }
+  }, [])
+
+  const handleClaimCommunity = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/communities/${id}/claim`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(body.error ?? 'Failed to claim community')
+      }
+      const updated: Community = await res.json()
+      dispatch({ type: 'CLAIM_COMMUNITY', community: updated })
     } catch (e) {
       dispatch({ type: 'SET_SUBMIT_ERROR', error: e instanceof Error ? e.message : 'An unexpected error occurred' })
     }
@@ -370,7 +439,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
   useEffect(() => {
     if (typeof window === 'undefined') return
     let target = '/'
-    if (state.drawMode !== 'off') {
+    if (state.drawMode !== 'off' && state.panel.type !== 'edit') {
       target = '/register'
     } else if (state.panel.type === 'detail' || state.panel.type === 'edit') {
       target = `/c/${state.panel.community.slug}`
@@ -429,6 +498,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     handleDeleteCommunity,
     handleRegisterSubmit,
     handleUpdateCommunity,
+    handleClaimCommunity,
     initialQueryDoneRef,
   }
 }

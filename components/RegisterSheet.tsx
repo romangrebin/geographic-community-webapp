@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import type { CommunityCategory } from '@/lib/types'
+import type { User } from '@supabase/supabase-js'
 import { area } from '@turf/turf'
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
   }) => Promise<void>
   onBack: () => void
   submitError: string | null
+  currentUser?: User | null
 }
 
 type UrlResult =
@@ -41,14 +43,14 @@ function normalizeUrl(raw: string): UrlResult {
 const inputClass = 'w-full border border-line-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-4 transition-shadow'
 const labelClass = 'block text-sm font-medium text-ink-2 mb-1'
 
-export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }: Props) {
+export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, currentUser }: Props) {
+  const authEmail = currentUser?.email ?? null
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [categoryChoice, setCategoryChoice] = useState<'neighborhood_association' | 'other'>('neighborhood_association')
   const [categoryOther, setCategoryOther] = useState('')
   const [website, setWebsite] = useState('')
   const [websiteError, setWebsiteError] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const category: CommunityCategory =
@@ -56,7 +58,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
       ? 'neighborhood_association'
       : categoryOther.trim() || 'other'
 
-  const hasContact = website.trim() !== '' || email.trim() !== ''
+  const hasContact = website.trim() !== '' || !!authEmail
   const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError &&
     (categoryChoice !== 'other' || categoryOther.trim() !== '')
 
@@ -76,7 +78,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
       description: description.trim() || null,
       category,
       website: websiteResult.value,
-      email: email.trim() || null,
+      email: authEmail,
     })
     setSubmitting(false)
   }
@@ -160,10 +162,16 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError }
             />
             {websiteError && <p className="text-xs text-red-500 mt-1">{websiteError}</p>}
           </div>
-          <div>
-            <label className="block text-xs text-ink-4 mb-1">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@example.com" className={inputClass} />
-          </div>
+          {authEmail ? (
+            <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
+              Email: <span className="font-medium text-ink-3">{authEmail}</span>
+              <span className="ml-1 text-accent">(from your account)</span>
+            </p>
+          ) : (
+            <p className="text-xs text-ink-5">
+              Sign in to add a contact email to this listing.
+            </p>
+          )}
           {!hasContact && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
               Provide a website or email so residents can reach you.

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Community, CommunityInput } from '@/lib/types'
+import type { User } from '@supabase/supabase-js'
 
 const KNOWN_CATEGORY_LABELS: Record<string, string> = {
   neighborhood_association: 'Neighborhood Association',
@@ -35,12 +36,14 @@ type Props = {
   editingCommunity?: Community | null
   showAbout?: boolean
   browseMode?: boolean
+  currentUser?: User | null
   onBrowseModeChange?: (active: boolean) => void
   onSelectCommunity?: (c: Community) => void
   onDeleteCommunity?: (id: string) => void
   onEditCommunity?: (c: Community) => void
   onCancelEdit?: () => void
   onUpdateCommunity?: (id: string, data: Partial<CommunityInput>) => Promise<void>
+  onClaimCommunity?: (id: string) => Promise<void>
   submitError?: string | null
   onBack?: () => void
   onClose?: () => void
@@ -55,12 +58,14 @@ export default function CommunitySidebar({
   editingCommunity,
   showAbout,
   browseMode = false,
+  currentUser,
   onBrowseModeChange,
   onSelectCommunity,
   onDeleteCommunity,
   onEditCommunity,
   onCancelEdit,
   onUpdateCommunity,
+  onClaimCommunity,
   submitError,
   onBack,
   onClose,
@@ -73,6 +78,7 @@ export default function CommunitySidebar({
     return (
       <EditCommunityPanel
         community={editingCommunity}
+        currentUser={currentUser}
         onCancel={onCancelEdit}
         onSave={onUpdateCommunity}
         submitError={submitError ?? null}
@@ -81,12 +87,16 @@ export default function CommunitySidebar({
   }
 
   if (selectedCommunity) {
+    const isOwner = !!(currentUser && selectedCommunity.claimedBy === currentUser.id)
+    const canEdit = !selectedCommunity.claimedBy || isOwner
+    const canClaim = !selectedCommunity.claimedBy && !!currentUser
     return (
       <CommunityDetail
         community={selectedCommunity}
         onBack={onBack}
-        onDelete={onDeleteCommunity ? (id) => onDeleteCommunity(id) : undefined}
-        onEdit={onEditCommunity ? () => onEditCommunity(selectedCommunity) : undefined}
+        onDelete={canEdit && onDeleteCommunity ? (id) => onDeleteCommunity(id) : undefined}
+        onEdit={canEdit && onEditCommunity ? () => onEditCommunity(selectedCommunity) : undefined}
+        onClaim={canClaim && onClaimCommunity ? () => onClaimCommunity(selectedCommunity.id) : undefined}
       />
     )
   }
@@ -98,9 +108,8 @@ export default function CommunitySidebar({
     return (
       <div className="flex flex-col h-full bg-panel">
         <div className={panelHeader}>
-          <button onClick={() => { onBrowseModeChange?.(false); setSearchQuery('') }} className={backBtn}>←</button>
-          <h2 className="font-semibold text-ink flex-1 ml-3">All Communities</h2>
-          {onClose && <button onClick={onClose} className={closeBtn}>&times;</button>}
+          <h2 className="font-semibold text-ink flex-1">All Communities</h2>
+          {onClose && <button onClick={() => { onClose(); setSearchQuery('') }} className={closeBtn}>&times;</button>}
         </div>
         <div className="px-4 py-2.5 border-b border-line shrink-0 bg-panel">
           <input
@@ -183,15 +192,24 @@ function CommunityDetail({
   onBack,
   onDelete,
   onEdit,
+  onClaim,
 }: {
   community: Community
   onBack?: () => void
   onDelete?: (id: string) => void
   onEdit?: () => void
+  onClaim?: () => void
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmName, setConfirmName] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reportEmail, setReportEmail] = useState('')
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportDone, setReportDone] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [claiming, setClaiming] = useState(false)
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -199,10 +217,46 @@ function CommunityDetail({
     setDeleting(false)
   }
 
+  const handleReport = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reportReason.trim()) return
+    setReportSubmitting(true)
+    setReportError(null)
+    try {
+      const res = await fetch(`/api/communities/${community.id}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reportReason.trim(), reporter_email: reportEmail.trim() || undefined }),
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(body.error ?? 'Failed to submit report')
+      }
+      setReportDone(true)
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setReportSubmitting(false)
+    }
+  }
+
+  const handleClaim = async () => {
+    setClaiming(true)
+    await onClaim?.()
+    setClaiming(false)
+  }
+
   return (
     <div className="flex flex-col h-full bg-panel">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
-        {onBack && <button onClick={onBack} className={backBtn}>←</button>}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="shrink-0 flex items-center gap-1 text-sm font-medium text-ink-3 hover:text-ink px-2 py-1 rounded-lg hover:bg-panel-hover transition-colors cursor-pointer"
+          >
+            ← Back
+          </button>
+        )}
         <h2 className="font-semibold text-ink truncate flex-1">{community.name}</h2>
       </div>
 
@@ -210,6 +264,13 @@ function CommunityDetail({
         <span className="inline-block text-xs bg-accent-chip text-accent-text px-2.5 py-1 rounded-full font-medium">
           {categoryLabel(community.category)}
         </span>
+
+        {/* Managed-by badge for claimed communities */}
+        {community.claimedBy && community.email && (
+          <p className="text-xs text-ink-4 bg-panel-2 border border-line rounded-lg px-3 py-2">
+            Managed by <span className="font-medium text-ink-3">{community.email}</span>
+          </p>
+        )}
 
         {/* Get Involved */}
         <div className="bg-accent-dim border border-accent-rim rounded-xl p-4 space-y-3">
@@ -244,14 +305,24 @@ function CommunityDetail({
           Registered {new Date(community.createdAt).toLocaleDateString()}
         </p>
 
-        {/* Edit / Delete actions */}
+        {/* Edit / Delete / Claim actions */}
         <div className="pt-2 border-t border-line-sub space-y-2">
           {onEdit && (
             <button
               onClick={onEdit}
-              className="text-xs text-accent hover:text-accent-hi transition-colors cursor-pointer font-medium"
+              className="block text-xs text-accent hover:text-accent-hi transition-colors cursor-pointer font-medium"
             >
               Edit this community…
+            </button>
+          )}
+
+          {onClaim && (
+            <button
+              onClick={handleClaim}
+              disabled={claiming}
+              className="block text-xs text-accent hover:text-accent-hi transition-colors cursor-pointer font-medium disabled:opacity-50"
+            >
+              {claiming ? 'Claiming…' : 'Claim this community…'}
             </button>
           )}
 
@@ -295,6 +366,65 @@ function CommunityDetail({
             </div>
           </div>
         )}
+
+        {/* Report section */}
+        <div className="pt-2 border-t border-line-sub">
+          {!reportOpen && !reportDone && (
+            <button
+              onClick={() => setReportOpen(true)}
+              className="block text-xs text-ink-5 hover:text-ink-3 transition-colors cursor-pointer"
+            >
+              Report this listing…
+            </button>
+          )}
+
+          {reportDone && (
+            <p className="text-xs text-ink-4 bg-panel-2 border border-line rounded-lg px-3 py-2">
+              Thanks — we'll review this listing.
+            </p>
+          )}
+
+          {reportOpen && !reportDone && (
+            <form onSubmit={handleReport} className="space-y-2 mt-2">
+              <p className="text-xs font-medium text-ink-3">Report this listing</p>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="What's the issue? (spam, inaccurate info, impersonation…)"
+                rows={3}
+                maxLength={2000}
+                required
+                className={`${inputClass} resize-none text-xs`}
+              />
+              <input
+                type="email"
+                value={reportEmail}
+                onChange={(e) => setReportEmail(e.target.value)}
+                placeholder="Your email (optional)"
+                className={`${inputClass} text-xs`}
+              />
+              {reportError && (
+                <p className="text-xs text-red-600">{reportError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={!reportReason.trim() || reportSubmitting}
+                  className="flex-1 bg-accent text-white py-1.5 rounded-lg text-xs font-medium hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {reportSubmitting ? 'Submitting…' : 'Submit report'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setReportOpen(false); setReportReason(''); setReportEmail(''); setReportError(null) }}
+                  className="flex-1 border border-line text-ink-2 py-1.5 rounded-lg text-xs hover:bg-panel-2 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -302,11 +432,13 @@ function CommunityDetail({
 
 function EditCommunityPanel({
   community,
+  currentUser,
   onCancel,
   onSave,
   submitError,
 }: {
   community: Community
+  currentUser?: User | null
   onCancel?: () => void
   onSave?: (id: string, data: Partial<CommunityInput>) => Promise<void>
   submitError: string | null
@@ -321,14 +453,16 @@ function EditCommunityPanel({
     community.category === 'neighborhood_association' ? 'neighborhood_association' : 'other'
   )
   const [website, setWebsite] = useState(community.website ?? '')
-  const [email, setEmail] = useState(community.email ?? '')
   const [saving, setSaving] = useState(false)
+
+  // Email: use auth email if signed in, otherwise preserve existing community email
+  const contactEmail = currentUser?.email ?? community.email ?? null
 
   const resolvedCategory = categoryChoice === 'neighborhood_association'
     ? 'neighborhood_association'
     : categoryOther.trim() || 'other'
 
-  const hasContact = website.trim() !== '' || email.trim() !== ''
+  const hasContact = website.trim() !== '' || !!contactEmail
   const canSave = name.trim() !== '' && hasContact && !saving &&
     (categoryChoice !== 'other' || categoryOther.trim() !== '')
 
@@ -341,7 +475,7 @@ function EditCommunityPanel({
       description: description.trim() || null,
       category: resolvedCategory,
       website: website.trim() || null,
-      email: email.trim() || null,
+      email: contactEmail,
     })
     setSaving(false)
   }
@@ -416,10 +550,14 @@ function EditCommunityPanel({
               className={inputClass}
             />
           </div>
-          <div>
-            <label className={labelClass}>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@example.com" className={inputClass} />
-          </div>
+          {contactEmail ? (
+            <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
+              Email: <span className="font-medium text-ink-3">{contactEmail}</span>
+              {currentUser?.email && <span className="ml-1 text-accent">(from your account)</span>}
+            </p>
+          ) : (
+            <p className="text-xs text-ink-5">Sign in to add a contact email.</p>
+          )}
           {!hasContact && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
               Provide a website or email so residents can reach you.
@@ -432,7 +570,10 @@ function EditCommunityPanel({
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-line shrink-0">
+      <div className="px-4 py-3 border-t border-line shrink-0 space-y-2">
+        <p className="text-xs text-ink-5 text-center">
+          Drag the boundary vertices on the map to adjust the shape.
+        </p>
         <button
           type="submit" disabled={!canSave}
           className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"

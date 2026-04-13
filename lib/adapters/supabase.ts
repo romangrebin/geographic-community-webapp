@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import slugify from 'slugify'
-import type { CommunityRepository } from '../repository'
+import type { CommunityRepository, CreateOptions } from '../repository'
 import type { Community, CommunityInput } from '../types'
 
 function rowToCommunity(row: Record<string, unknown>): Community {
@@ -14,17 +14,27 @@ function rowToCommunity(row: Record<string, unknown>): Community {
     email: (row.email as string | null) ?? null,
     geojson: row.geojson as Community['geojson'],
     createdAt: row.created_at as string,
+    claimedBy: (row.claimed_by as string | null) ?? null,
+    claimedAt: (row.claimed_at as string | null) ?? null,
   }
 }
 
 export class SupabaseCommunityRepository implements CommunityRepository {
+  /** Anon client — used for reads, respects RLS public_read policy. */
   private client
+  /**
+   * Write client — uses service role key to bypass RLS for server-side mutations.
+   * Ownership is enforced at the API route layer before reaching the adapter,
+   * so skipping RLS here is safe. Falls back to anon key in local dev without RLS.
+   */
+  private writeClient
 
   constructor() {
-    this.client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? anonKey
+    this.client = createClient(url, anonKey)
+    this.writeClient = createClient(url, serviceKey)
   }
 
   private async deriveUniqueSlug(name: string): Promise<string> {
@@ -42,14 +52,19 @@ export class SupabaseCommunityRepository implements CommunityRepository {
     return `${base}-${i}`
   }
 
-  async create(input: CommunityInput): Promise<Community> {
+  async create(input: CommunityInput, options?: CreateOptions): Promise<Community> {
     if (!input.website && !input.email) {
       throw new Error('At least one of website or email is required')
     }
     const slug = await this.deriveUniqueSlug(input.name)
-    const { data, error } = await this.client
+    const row: Record<string, unknown> = { ...input, slug }
+    if (options?.claimedBy) {
+      row.claimed_by = options.claimedBy
+      row.claimed_at = new Date().toISOString()
+    }
+    const { data, error } = await this.writeClient
       .from('communities')
-      .insert({ ...input, slug })
+      .insert(row)
       .select()
       .single()
 
@@ -98,7 +113,7 @@ export class SupabaseCommunityRepository implements CommunityRepository {
       throw new Error('At least one of website or email is required')
     }
 
-    const { data, error } = await this.client
+    const { data, error } = await this.writeClient
       .from('communities')
       .update(input)
       .eq('id', id)
@@ -110,7 +125,7 @@ export class SupabaseCommunityRepository implements CommunityRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await this.client
+    const { error } = await this.writeClient
       .from('communities')
       .delete()
       .eq('id', id)

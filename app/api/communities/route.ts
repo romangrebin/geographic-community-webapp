@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createCommunity } from '@/lib/communities'
 import { validateCommunityInput, checkOrigin } from '@/lib/validation'
+import { getUser } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   if (!checkOrigin(req)) {
@@ -19,8 +20,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 400 })
   }
 
+  // If the user is signed in, auto-claim the community
+  const authUser = process.env.NEXT_PUBLIC_SUPABASE_URL ? await getUser(req) : null
+
   try {
-    const community = await createCommunity(result.sanitized)
+    const community = await createCommunity(result.sanitized, {
+      claimedBy: authUser?.id,
+    })
     return NextResponse.json(community, { status: 201 })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Internal server error'

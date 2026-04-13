@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import slugify from 'slugify'
-import type { CommunityRepository } from '../repository'
+import type { CommunityRepository, CreateOptions } from '../repository'
 import type { Community, CommunityInput } from '../types'
 
 /**
@@ -15,11 +15,20 @@ const DATA_FILE_PATH = resolve(
   process.env.LOCAL_DATA_PATH ?? '.data/communities.json'
 )
 
+function normalize(raw: Record<string, unknown>): Community {
+  const c = raw as Community
+  return {
+    ...c,
+    claimedBy: c.claimedBy ?? null,
+    claimedAt: c.claimedAt ?? null,
+  }
+}
+
 function read(): Map<string, Community> {
   if (!existsSync(DATA_FILE_PATH)) return new Map()
-  const raw = readFileSync(DATA_FILE_PATH, 'utf-8')
-  const arr: Community[] = JSON.parse(raw)
-  return new Map(arr.map((c) => [c.id, c]))
+  const text = readFileSync(DATA_FILE_PATH, 'utf-8')
+  const arr: Record<string, unknown>[] = JSON.parse(text)
+  return new Map(arr.map((c) => [c.id as string, normalize(c)]))
 }
 
 function write(store: Map<string, Community>): void {
@@ -41,7 +50,7 @@ function deriveUniqueSlug(name: string, store: Map<string, Community>): string {
 }
 
 export class JsonFileCommunityRepository implements CommunityRepository {
-  async create(input: CommunityInput): Promise<Community> {
+  async create(input: CommunityInput, options?: CreateOptions): Promise<Community> {
     if (!input.website && !input.email) {
       throw new Error('At least one of website or email is required')
     }
@@ -57,6 +66,8 @@ export class JsonFileCommunityRepository implements CommunityRepository {
       id: randomUUID(),
       slug: deriveUniqueSlug(input.name, store),
       createdAt: new Date().toISOString(),
+      claimedBy: options?.claimedBy ?? null,
+      claimedAt: options?.claimedBy ? new Date().toISOString() : null,
       ...input,
     }
 
@@ -100,4 +111,5 @@ export class JsonFileCommunityRepository implements CommunityRepository {
     store.delete(id)
     write(store)
   }
+
 }
