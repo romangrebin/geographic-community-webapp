@@ -39,6 +39,7 @@ const COMMUNITY_OUTLINE_LAYER = 'community-outlines'
 const SELECTED_GLOW_LAYER = 'community-selected-glow'
 const SELECTED_FILL_LAYER = 'community-selected-fill'
 const SELECTED_OUTLINE_LAYER = 'community-selected-outline'
+const STEWARD_BADGE_LAYER = 'community-steward-badges'
 // Sentinel value used as a filter target when nothing is selected.
 // We use a filter that will never match anything real.
 const NO_SELECTION_FILTER = ['==', ['get', 'communityId'], '__none__'] as unknown as maplibregl.FilterSpecification
@@ -209,6 +210,27 @@ const Map = forwardRef<MapHandle, Props>(function Map(
         },
       })
 
+      // Steward badge — small checkmark label centered on claimed community polygons.
+      // MapLibre auto-places symbol layers at the visual centroid of polygon features.
+      map.addLayer({
+        id: STEWARD_BADGE_LAYER,
+        type: 'symbol',
+        source: COMMUNITY_SOURCE,
+        filter: ['==', ['get', 'steward'], true],
+        layout: {
+          'text-field': '✓',
+          'text-font': ['Open Sans Bold'],
+          'text-size': 13,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+        },
+        paint: {
+          'text-color': '#0f766e',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      })
+
       mapRef.current = map
       setMapReady(true)
       onReady?.()
@@ -252,7 +274,7 @@ const Map = forwardRef<MapHandle, Props>(function Map(
         .map((c) => ({
           ...c.geojson,
           id: c.id,
-          properties: { ...c.geojson.properties, communityId: c.id, communityName: c.name },
+          properties: { ...c.geojson.properties, communityId: c.id, communityName: c.name, steward: !!c.claimedBy },
         })),
     })
   }, [communities, editingCommunityId, mapReady])

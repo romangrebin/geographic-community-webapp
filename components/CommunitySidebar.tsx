@@ -18,6 +18,15 @@ function categoryLabel(category: string): string {
   return KNOWN_CATEGORY_LABELS[category] ?? category
 }
 
+// Shared components
+function StewardBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+      <span aria-hidden>✓</span> Steward
+    </span>
+  )
+}
+
 // Shared class fragments
 const panelHeader = 'flex items-center justify-between px-4 py-3 border-b border-line bg-panel-2 shrink-0'
 const closeBtn = 'text-ink-5 hover:text-ink-3 text-xl leading-none cursor-pointer transition-colors'
@@ -137,6 +146,9 @@ export default function CommunitySidebar({
                 {c.description && (
                   <p className="text-sm text-ink-4 mt-0.5 line-clamp-2">{c.description}</p>
                 )}
+                {c.claimedBy && (
+                  <div className="mt-1"><StewardBadge /></div>
+                )}
               </button>
             ))
           )}
@@ -176,9 +188,10 @@ export default function CommunitySidebar({
             {c.description && (
               <p className="text-sm text-ink-4 mt-0.5 line-clamp-2">{c.description}</p>
             )}
-            <div className="mt-1 flex gap-3 text-xs text-accent font-medium">
-              {c.website && <span>Website ↗</span>}
-              {c.email && <span>Email</span>}
+            <div className="mt-1 flex items-center gap-3 text-xs font-medium">
+              {c.website && <span className="text-accent">Website ↗</span>}
+              {c.email && <span className="text-accent">Email</span>}
+              {c.claimedBy && <StewardBadge />}
             </div>
           </button>
         ))}
@@ -261,15 +274,24 @@ function CommunityDetail({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        <span className="inline-block text-xs bg-accent-chip text-accent-text px-2.5 py-1 rounded-full font-medium">
-          {categoryLabel(community.category)}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-block text-xs bg-accent-chip text-accent-text px-2.5 py-1 rounded-full font-medium">
+            {categoryLabel(community.category)}
+          </span>
+          {community.claimedBy && <StewardBadge />}
+        </div>
 
-        {/* Managed-by badge for claimed communities */}
-        {community.claimedBy && community.email && (
-          <p className="text-xs text-ink-4 bg-panel-2 border border-line rounded-lg px-3 py-2">
-            Managed by <span className="font-medium text-ink-3">{community.email}</span>
-          </p>
+        {/* Steward trust card */}
+        {community.claimedBy && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Active Steward</p>
+            <p className="text-xs text-emerald-700 leading-relaxed">
+              This community has a verified steward who keeps its listing accurate and up to date.
+            </p>
+            {community.email && (
+              <p className="text-xs text-emerald-600 font-medium pt-0.5">{community.email}</p>
+            )}
+          </div>
         )}
 
         {/* Get Involved */}
