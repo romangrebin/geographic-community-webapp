@@ -143,7 +143,7 @@ export default function MapPage(props: Props) {
       )}
 
       {/* Header */}
-      <header className="shrink-0 z-30 bg-panel border-b border-line shadow-sm px-4 py-2.5 space-y-2">
+      <header className="shrink-0 z-30 bg-panel border-b border-line shadow-sm px-4 py-2.5">
         {/* Row 1: logo + search (+ desktop-only buttons) */}
         <div className="flex items-center gap-2">
           <Link
@@ -196,7 +196,7 @@ export default function MapPage(props: Props) {
         </div>
 
         {/* Row 2: buttons (mobile only) */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="mt-2 flex md:hidden items-center gap-2">
           {drawMode === 'off' && (
             <button
               onClick={() => dispatch({ type: 'SHOW_BROWSE' })}
