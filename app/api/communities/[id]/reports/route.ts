@@ -47,9 +47,28 @@ export async function POST(
       reason.trim(),
       typeof reporter_email === 'string' ? reporter_email.trim() || undefined : undefined
     )
-    return new NextResponse(null, { status: 201 })
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+
+  // Fire-and-forget ntfy notification — failure doesn't affect the response
+  const ntfyUrl = process.env.NTFY_URL
+  if (ntfyUrl) {
+    const reporterNote = typeof reporter_email === 'string' && reporter_email.trim()
+      ? `\nFrom: ${reporter_email.trim()}`
+      : ''
+    fetch(ntfyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Report: ${community.name}`,
+        message: `${(reason as string).trim()}${reporterNote}`,
+        priority: 3,
+        tags: ['warning'],
+      }),
+    }).catch((err) => console.error('ntfy notification failed:', err))
+  }
+
+  return new NextResponse(null, { status: 201 })
 }

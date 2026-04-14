@@ -622,10 +622,13 @@ function AboutPanel({ onClose }: { onClose?: () => void }) {
         </p>
         <p>
           The product is a discovery tool, not a social network; there are no feeds, posts, or
-          messaging, and no account is required to browse. Anybody is able to create a community,
-          but any community created by non-authenticated users can be edited, claimed, or deleted
-          by anyone. In order to register a stable community, sign-in (its easy!) with the public-facing email
-          address that people should use to contact the community.
+          messaging, and no account is required to browse.
+        </p>
+        <p>
+          Anybody is able to create a community, but any community created by non-authenticated users
+          can be edited, claimed, or deleted by anyone. In order to register a stable community,
+          sign-in (its easy!) with the public-facing email address that people should use to contact
+          the community.
         </p>
         <p>
           Developed by{' '}
