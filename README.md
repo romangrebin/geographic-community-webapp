@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# geographic.community
 
-## Getting Started
+A map-first public directory for geographically-defined communities — neighborhood associations, block clubs, HOAs, watersheds, and similar organizations whose membership is determined by where you live.
 
-First, run the development server:
+The goal is discoverability: residents should be able to click anywhere on a map and immediately see what community organizations exist there. There are no feeds, no posts, no messaging. It is a directory, not a social network.
+
+**Live site:** [geographic.community](https://geographic.community)
+
+---
+
+## Features
+
+- **Map-first browsing** — click anywhere to see communities at that location
+- **Draw to register** — trace a polygon on the map to define a community's boundary
+- **Boundary editing** — drag vertices to adjust an existing boundary
+- **Steward ownership** — sign in with a magic link to claim a community and become its verified steward
+- **Trust badges** — claimed communities display a steward badge on the map and in listings
+- **Report listings** — users can flag inaccurate or spam listings
+- **ntfy notifications** — optional push notifications for new reports
+
+## Tech stack
+
+- **Framework:** [Next.js](https://nextjs.org/) (App Router, TypeScript)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
+- **Map:** [MapLibre GL JS](https://maplibre.org/) with [Carto](https://carto.com/) basemap tiles
+- **Drawing:** [maplibre-gl-draw](https://github.com/mapbox/mapbox-gl-draw)
+- **Database:** [Supabase](https://supabase.com/) (Postgres + Row Level Security)
+- **Auth:** Supabase magic links (email OTP, no passwords)
+- **Geometry:** [Turf.js](https://turfjs.org/) for area calculations and validation
+- **Deployment:** [Vercel](https://vercel.com/)
+
+## Running locally
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Set up environment variables
+
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in `.env.local`:
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side writes) |
+| `NTFY_URL` | Optional — ntfy push notification URL for new reports |
+
+The app also works without Supabase by falling back to a local JSON file at `.data/communities.json`. This is useful for front-end development without a database.
+
+### 3. Set up Supabase (if using)
+
+Run the schema migration against your Supabase project:
+
+```bash
+# In the Supabase dashboard SQL editor, or via CLI:
+psql -h <host> -U postgres -d postgres -f supabase/schema.sql
+```
+
+Enable **Email** provider in Supabase Auth → Providers. Magic links work without any additional configuration once the email provider is enabled.
+
+### 4. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Data layer
 
-## Learn More
+The app uses a repository pattern with swappable adapters:
 
-To learn more about Next.js, take a look at the following resources:
+- **`lib/repository.ts`** — interface definition
+- **`lib/adapters/supabase.ts`** — production adapter (Postgres via Supabase)
+- **`lib/adapters/json-file.ts`** — local dev adapter (reads/writes `.data/communities.json`)
+- **`lib/adapters/mock.ts`** — in-memory adapter for tests
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The adapter is selected in `lib/db.ts` based on whether `NEXT_PUBLIC_SUPABASE_URL` is set.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### State machine
 
-## Deploy on Vercel
+All map page state lives in `app/useMapPageState.ts` as a `useReducer`-based state machine. Panel navigation, draw mode, edit mode, and point queries are all modelled as explicit state transitions — no ad-hoc boolean flags.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Auth
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Server-side auth uses `@supabase/ssr` with cookie-based sessions. The `getUser()` helper in `lib/auth.ts` is used by API routes to check the current user without exposing the service role key to the client.
+
+Write operations use the service role key server-side (bypassing RLS) with ownership enforced at the API route layer. Direct client access to the database is restricted to reads via RLS policies.
+
+## Deployment
+
+The app is designed for Vercel. Add the same environment variables from `.env.local` to your Vercel project settings.
+
+
+## License
+
+MIT — see [LICENSE](LICENSE).
