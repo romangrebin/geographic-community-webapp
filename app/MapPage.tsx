@@ -19,6 +19,7 @@ type Props = {
   initialCommunities: Community[]
   initialSelectedCommunity?: Community | null
   initialMode?: 'explore' | 'draw'
+  initialPanel?: 'about' | 'browse'
   initialLat?: number | null
   initialLng?: number | null
 }

@@ -184,7 +184,12 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-line shrink-0">
+      <div className="px-4 py-3 border-t border-line shrink-0 space-y-2">
+        {!authEmail && (
+          <p className="text-xs text-red-400 text-center">
+            Tip: sign in first (button above on navbar) so only you can edit or remove this listing.
+          </p>
+        )}
         <button
           type="submit" disabled={!canSubmit}
           className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"

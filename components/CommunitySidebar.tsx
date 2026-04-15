@@ -627,8 +627,8 @@ function AboutPanel({ onClose }: { onClose?: () => void }) {
         <p>
           Anybody is able to create a community, but any community created by non-authenticated users
           can be edited, claimed, or deleted by anyone. In order to register a stable community,
-          sign-in (its easy!) with the public-facing email address that people should use to contact
-          the community.
+          sign-in (its easy!) with the public-facing email address that members should use to contact
+          community steward(s).
         </p>
         <p>
           Developed by{' '}

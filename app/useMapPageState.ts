@@ -233,6 +233,7 @@ type InitProps = {
   initialCommunities: Community[]
   initialSelectedCommunity?: Community | null
   initialMode?: 'explore' | 'draw'
+  initialPanel?: 'about' | 'browse'
   initialLat?: number | null
   initialLng?: number | null
 }
@@ -242,6 +243,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     initialCommunities,
     initialSelectedCommunity = null,
     initialMode = 'explore',
+    initialPanel: initialPanelType = null,
     initialLat = null,
     initialLng = null,
   } = props
@@ -251,6 +253,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     ? { type: 'detail', community: initialSelectedCommunity }
     : hasInitialCoords
     ? { type: 'explore' }
+    : initialPanelType === 'about'
+    ? { type: 'about' }
+    : initialPanelType === 'browse'
+    ? { type: 'browse' }
     : { type: 'closed' }
 
   const [state, dispatch] = useReducer(reducer, {
@@ -443,6 +449,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       target = '/register'
     } else if (state.panel.type === 'detail' || state.panel.type === 'edit') {
       target = `/c/${state.panel.community.slug}`
+    } else if (state.panel.type === 'about') {
+      target = '/about'
+    } else if (state.panel.type === 'browse') {
+      target = '/all'
     } else if (state.clickMarker) {
       target = `/?lat=${state.clickMarker.lat.toFixed(6)}&lng=${state.clickMarker.lng.toFixed(6)}`
     }
@@ -459,6 +469,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       const path = window.location.pathname
       if (path === '/register') {
         dispatch({ type: 'START_DRAW' })
+      } else if (path === '/about') {
+        dispatch({ type: 'SHOW_ABOUT' })
+      } else if (path === '/all') {
+        dispatch({ type: 'SHOW_BROWSE' })
       } else if (path.startsWith('/c/')) {
         const slug = path.split('/c/')[1]
         const community = state.communities.find((c) => c.slug === slug)
@@ -481,6 +495,25 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [state.communities, handleMapClick])
+
+  // Hash-based panel state — handles /#about and /#all on initial load and
+  // when an in-page anchor link changes the hash without a navigation.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleHash = (hash: string) => {
+      if (hash === '#about') dispatch({ type: 'SHOW_ABOUT' })
+      else if (hash === '#all') dispatch({ type: 'SHOW_BROWSE' })
+    }
+
+    // Check hash on mount (e.g. someone navigates directly to /#about)
+    if (!initialPanelType) handleHash(window.location.hash)
+
+    // React to hash changes from in-page links (e.g. <a href="/#about">)
+    const onHashChange = () => handleHash(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [initialPanelType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial lat/lng query
   const initialQueryDoneRef = useRef(false)
