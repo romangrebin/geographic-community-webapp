@@ -52,22 +52,26 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
-  // Fire-and-forget ntfy notification — failure doesn't affect the response
+  // Send ntfy notification — awaited so Vercel doesn't kill the request mid-flight
   const ntfyUrl = process.env.NTFY_URL
   if (ntfyUrl) {
     const reporterNote = typeof reporter_email === 'string' && reporter_email.trim()
       ? `\nFrom: ${reporter_email.trim()}`
       : ''
-    fetch(ntfyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: `Report: ${community.name}`,
-        message: `${(reason as string).trim()}${reporterNote}`,
-        priority: 3,
-        tags: ['warning'],
-      }),
-    }).catch((err) => console.error('ntfy notification failed:', err))
+    try {
+      await fetch(ntfyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Report: ${community.name}`,
+          message: `${(reason as string).trim()}${reporterNote}`,
+          priority: 3,
+          tags: ['warning'],
+        }),
+      })
+    } catch (err) {
+      console.error('ntfy notification failed:', err)
+    }
   }
 
   return new NextResponse(null, { status: 201 })
