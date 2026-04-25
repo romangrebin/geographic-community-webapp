@@ -20,7 +20,7 @@ type DrawInstance = {
 
 type Props = {
   communities?: Community[]
-  onMapClick?: (lat: number, lng: number) => void
+  onMapClick?: (lat: number, lng: number, communityIds: string[]) => void
   onCommunityHover?: (communities: Community[]) => void
   onReady?: () => void
   drawActive?: boolean
@@ -354,7 +354,11 @@ const Map = forwardRef<MapHandle, Props>(function Map(
 
       const onCreate = (e: { features: unknown[] }) => {
         const feature = e.features[0] as Feature<Polygon | MultiPolygon>
-        if (feature) onDrawComplete?.(feature)
+        if (!feature) return
+        // Defer mode change to next tick — calling changeMode synchronously inside a draw
+        // event re-triggers draw.create and causes infinite recursion.
+        setTimeout(() => draw.changeMode('direct_select', { featureId: feature.id as string }), 0)
+        onDrawComplete?.(feature)
       }
       const onUpdate = (e: { features: unknown[] }) => {
         const feature = e.features[0] as Feature<Polygon | MultiPolygon>
@@ -383,7 +387,11 @@ const Map = forwardRef<MapHandle, Props>(function Map(
 
     const handler = (e: maplibregl.MapMouseEvent) => {
       if (drawActive) return
-      onMapClick(e.lngLat.lat, e.lngLat.lng)
+      const features = map.queryRenderedFeatures(e.point, { layers: [COMMUNITY_FILL_LAYER] })
+      const ids = features
+        .map((f) => f.properties?.communityId as string | undefined)
+        .filter((id): id is string => !!id)
+      onMapClick(e.lngLat.lat, e.lngLat.lng, ids)
     }
     map.on('click', handler)
     return () => { map.off('click', handler) }
@@ -396,8 +404,14 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     const map = mapRef.current
     if (!mapReady || !map) return
 
+    if (drawActive) {
+      // Clear any inline cursor the hover handler may have set before draw mode activated,
+      // so the draw plugin's CSS class (cursor: crosshair) can take effect unobstructed.
+      map.getCanvas().style.cursor = ''
+      return
+    }
+
     const mousemoveHandler = (e: maplibregl.MapMouseEvent) => {
-      if (drawActive) return
 
       const features = map.queryRenderedFeatures(e.point, { layers: [COMMUNITY_FILL_LAYER] })
 

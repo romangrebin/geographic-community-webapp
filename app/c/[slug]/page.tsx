@@ -1,5 +1,5 @@
 import { getCommunityBySlug, listCommunities } from '@/lib/communities'
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import MapPage from '@/app/MapPage'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function CommunityPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const community = await getCommunityBySlug(slug)
-  if (!community) notFound()
+  if (!community) redirect('/all?notFound=1')
 
   const communities = await listCommunities()
   return <MapPage initialCommunities={communities} initialSelectedCommunity={community} />

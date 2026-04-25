@@ -48,6 +48,22 @@ ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_insert_reports" ON reports FOR INSERT WITH CHECK (true);
 CREATE POLICY "public_read_reports" ON reports FOR SELECT USING (true);
 
+-- ── Audit additions ───────────────────────────────────────
+
+ALTER TABLE communities ADD COLUMN updated_at timestamptz;
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER communities_set_updated_at
+BEFORE UPDATE ON communities
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- Migration path to Tier 3 (run when ready for PostGIS):
 -- ALTER TABLE communities ADD COLUMN geom geometry(MultiPolygon, 4326);
 -- UPDATE communities SET geom = ST_GeomFromGeoJSON(geojson->>'geometry');

@@ -37,6 +37,7 @@ export type State = {
   pointResults: Community[]
   pointLoading: boolean
   pointClicked: boolean
+  pointOffline: boolean
   clickMarker: { lat: number; lng: number } | null
   submitError: string | null
   hoveredCommunities: Community[]
@@ -55,6 +56,7 @@ type Action =
   | { type: 'CLICK_MAP'; lat: number; lng: number }
   | { type: 'CLICK_LOADING' }
   | { type: 'CLICK_RESULTS'; communities: Community[] }
+  | { type: 'CLICK_OFFLINE' }
   | { type: 'SELECT_COMMUNITY'; community: Community }
   | { type: 'EDIT_COMMUNITY'; community: Community }
   | { type: 'FINISH_EDIT'; community: Community }
@@ -131,6 +133,7 @@ function reducer(state: State, action: Action): State {
         pointResults: [],
         pointLoading: true,
         pointClicked: true,
+        pointOffline: false,
         panel: { type: 'explore' },
         hoveredCommunities: [],
       }
@@ -139,7 +142,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, pointLoading: true }
 
     case 'CLICK_RESULTS':
-      return { ...state, pointResults: action.communities, pointLoading: false }
+      return { ...state, pointResults: action.communities, pointLoading: false, pointOffline: false }
+
+    case 'CLICK_OFFLINE':
+      return { ...state, pointResults: [], pointLoading: false, pointOffline: true }
 
     case 'SELECT_COMMUNITY':
       return { ...state, panel: { type: 'detail', community: action.community } }
@@ -189,7 +195,7 @@ function reducer(state: State, action: Action): State {
       return { ...state, panel: { type: 'browse' } }
 
     case 'CLOSE_PANEL':
-      return { ...state, panel: { type: 'closed' }, clickMarker: null, pointResults: [], pointLoading: false, pointClicked: false }
+      return { ...state, panel: { type: 'closed' }, clickMarker: null, pointResults: [], pointLoading: false, pointClicked: false, pointOffline: false }
 
     case 'SET_SUBMIT_ERROR':
       return { ...state, submitError: action.error }
@@ -268,6 +274,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     pointResults: [],
     pointLoading: hasInitialCoords,
     pointClicked: hasInitialCoords,
+    pointOffline: false,
     clickMarker: hasInitialCoords ? { lat: initialLat, lng: initialLng } : null,
     submitError: null,
     hoveredCommunities: [],
@@ -275,15 +282,30 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
 
   // ── Map callbacks ──────────────────────────────────────
 
-  const handleMapClick = useCallback(async (lat: number, lng: number) => {
+  const handleMapClick = useCallback(async (lat: number, lng: number, communityIds?: string[]) => {
     if (state.drawMode !== 'off') return
     dispatch({ type: 'CLICK_MAP', lat, lng })
+
+    if (communityIds !== undefined) {
+      // Map click — resolve against already-rendered communities in state, no network call needed.
+      // TODO: convert to bbox endpoint + viewport-triggered loading when page-load payload becomes
+      // noticeable (~500+ communities, or whenever initial load feels slow).
+      const matched = stateRef.current.communities.filter((c) => communityIds.includes(c.id))
+      dispatch({ type: 'CLICK_RESULTS', communities: matched })
+      return
+    }
+
+    // Address search — viewport may not contain the target location yet, so hit the API directly.
     try {
       const res = await fetch(`/api/communities/at-point?lat=${lat}&lng=${lng}`)
       const data = await res.json()
       dispatch({ type: 'CLICK_RESULTS', communities: data })
     } catch {
-      dispatch({ type: 'CLICK_RESULTS', communities: [] })
+      if (!navigator.onLine) {
+        dispatch({ type: 'CLICK_OFFLINE' })
+      } else {
+        dispatch({ type: 'CLICK_RESULTS', communities: [] })
+      }
     }
   }, [state.drawMode])
 

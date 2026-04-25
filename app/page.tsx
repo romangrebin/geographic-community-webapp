@@ -3,7 +3,7 @@ import MapPage from './MapPage'
 
 export const dynamic = 'force-dynamic'
 
-type SearchParams = { lat?: string; lng?: string }
+type SearchParams = { lat?: string; lng?: string; notFound?: string }
 
 export default async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const [communities, params] = await Promise.all([listCommunities(), searchParams])
@@ -16,6 +16,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       initialCommunities={communities}
       initialLat={validCoords ? initialLat : null}
       initialLng={validCoords ? initialLng : null}
+      flashMessage={params.notFound ? "That page doesn't exist." : undefined}
     />
   )
 }

@@ -41,6 +41,7 @@ type Props = {
   allCommunities?: Community[]
   loading?: boolean
   clicked?: boolean
+  offline?: boolean
   selectedCommunity?: Community | null
   editingCommunity?: Community | null
   showAbout?: boolean
@@ -63,6 +64,7 @@ export default function CommunitySidebar({
   allCommunities = [],
   loading,
   clicked,
+  offline = false,
   selectedCommunity,
   editingCommunity,
   showAbout,
@@ -173,7 +175,13 @@ export default function CommunitySidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {!loading && clicked && communities.length === 0 && (
+        {!loading && clicked && offline && (
+          <div className="p-6 text-center">
+            <p className="text-ink-3 text-sm mb-1">You appear to be offline.</p>
+            <p className="text-ink-5 text-xs">Reconnect and try again.</p>
+          </div>
+        )}
+        {!loading && clicked && !offline && communities.length === 0 && (
           <div className="p-6 text-center">
             <p className="text-ink-3 text-sm mb-1">No registered communities at this location.</p>
             <p className="text-ink-5 text-xs">Know of one? Add it using the button above.</p>
@@ -325,6 +333,9 @@ function CommunityDetail({
 
         <p className="text-xs text-ink-5">
           Registered {new Date(community.createdAt).toLocaleDateString()}
+          {community.updatedAt && (
+            <> &middot; Last updated {new Date(community.updatedAt).toLocaleDateString()}</>
+          )}
         </p>
 
         {/* Edit / Delete / Claim actions */}

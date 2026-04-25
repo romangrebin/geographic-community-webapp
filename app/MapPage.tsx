@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { bbox as turfBbox } from '@turf/turf'
 import CommunitySidebar from '@/components/CommunitySidebar'
@@ -22,10 +22,12 @@ type Props = {
   initialPanel?: 'about' | 'browse'
   initialLat?: number | null
   initialLng?: number | null
+  flashMessage?: string
 }
 
 export default function MapPage(props: Props) {
-  const { initialSelectedCommunity = null, initialLat = null, initialLng = null } = props
+  const { initialSelectedCommunity = null, initialLat = null, initialLng = null, flashMessage } = props
+  const [flashDismissed, setFlashDismissed] = useState(false)
   const mapRef = useRef<MapHandle>(null)
   const { user: currentUser } = useAuth()
 
@@ -45,7 +47,7 @@ export default function MapPage(props: Props) {
     initialQueryDoneRef,
   } = useMapPageState(props, mapRef)
 
-  const { communities, drawMode, drawError, panel, clickMarker, submitError, hoveredCommunities, pointResults, pointLoading, pointClicked, editGeojson } = state
+  const { communities, drawMode, drawError, panel, clickMarker, submitError, hoveredCommunities, pointResults, pointLoading, pointClicked, pointOffline, editGeojson } = state
 
   // Run initial lat/lng point query once map is ready
   useEffect(() => {
@@ -116,6 +118,7 @@ export default function MapPage(props: Props) {
       allCommunities={communities}
       loading={pointLoading}
       clicked={pointClicked}
+      offline={pointOffline}
       selectedCommunity={panel.type === 'detail' ? panel.community : null}
       editingCommunity={panel.type === 'edit' ? panel.community : null}
       showAbout={panel.type === 'about'}
@@ -136,6 +139,14 @@ export default function MapPage(props: Props) {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-canvas">
+      {/* Flash message banner (e.g. redirected from a missing community page) */}
+      {flashMessage && !flashDismissed && (
+        <div className="shrink-0 z-40 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center justify-between gap-4">
+          <span>{flashMessage}</span>
+          <button onClick={() => setFlashDismissed(true)} className="shrink-0 text-amber-600 hover:text-amber-900 font-medium cursor-pointer">Dismiss</button>
+        </div>
+      )}
+
       {/* Tier 2 nudge banner */}
       {communities.length >= TIER2_THRESHOLD && (
         <div className="shrink-0 z-40 bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 text-center">

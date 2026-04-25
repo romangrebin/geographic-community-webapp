@@ -14,6 +14,7 @@ function rowToCommunity(row: Record<string, unknown>): Community {
     email: (row.email as string | null) ?? null,
     geojson: row.geojson as Community['geojson'],
     createdAt: row.created_at as string,
+    updatedAt: (row.updated_at as string | null) ?? null,
     claimedBy: (row.claimed_by as string | null) ?? null,
     claimedAt: (row.claimed_at as string | null) ?? null,
   }

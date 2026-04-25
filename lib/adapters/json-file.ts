@@ -66,6 +66,7 @@ export class JsonFileCommunityRepository implements CommunityRepository {
       id: randomUUID(),
       slug: deriveUniqueSlug(input.name, store),
       createdAt: new Date().toISOString(),
+      updatedAt: null,
       claimedBy: options?.claimedBy ?? null,
       claimedAt: options?.claimedBy ? new Date().toISOString() : null,
       ...input,
@@ -95,7 +96,7 @@ export class JsonFileCommunityRepository implements CommunityRepository {
     const existing = store.get(id)
     if (!existing) throw new Error('Community not found')
 
-    const updated = { ...existing, ...input }
+    const updated = { ...existing, ...input, updatedAt: new Date().toISOString() }
     if (!updated.website && !updated.email) {
       throw new Error('At least one of website or email is required')
     }
