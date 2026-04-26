@@ -84,6 +84,7 @@ export default function CommunitySidebar({
   onClose,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'neighborhood_association' | 'other'>('all')
 
   if (showAbout) return <AboutPanel onClose={onClose} />
 
@@ -116,16 +117,19 @@ export default function CommunitySidebar({
   }
 
   if (browseMode) {
-    const filtered = allCommunities.filter((c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const filtered = allCommunities.filter((c) => {
+      if (categoryFilter === 'neighborhood_association' && c.category !== 'neighborhood_association') return false
+      if (categoryFilter === 'other' && c.category === 'neighborhood_association') return false
+      const q = searchQuery.toLowerCase()
+      return c.name.toLowerCase().includes(q) || (c.description?.toLowerCase().includes(q) ?? false)
+    })
     return (
       <div className="flex flex-col h-full bg-panel">
         <div className={panelHeader}>
           <h2 className="font-semibold text-ink flex-1">All Communities</h2>
-          {onClose && <button onClick={() => { onClose(); setSearchQuery('') }} className={closeBtn}>&times;</button>}
+          {onClose && <button onClick={() => { onClose(); setSearchQuery(''); setCategoryFilter('all') }} className={closeBtn}>&times;</button>}
         </div>
-        <div className="px-4 py-2.5 border-b border-line shrink-0 bg-panel">
+        <div className="px-4 pt-2.5 pb-2 border-b border-line shrink-0 bg-panel space-y-2">
           <input
             type="text"
             value={searchQuery}
@@ -133,6 +137,21 @@ export default function CommunitySidebar({
             placeholder="Search by name…"
             className="w-full border border-line-input rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-4 transition-shadow"
           />
+          <div className="flex gap-1.5">
+            {(['all', 'neighborhood_association', 'other'] as const).map((val) => (
+              <button
+                key={val}
+                onClick={() => setCategoryFilter(val)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                  categoryFilter === val
+                    ? 'bg-accent text-white'
+                    : 'bg-chip text-ink-3 hover:bg-panel-hover'
+                }`}
+              >
+                {val === 'all' ? 'All' : val === 'neighborhood_association' ? 'Neighborhood Assoc.' : 'Other'}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
