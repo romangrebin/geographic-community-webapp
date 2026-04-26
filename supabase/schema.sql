@@ -48,6 +48,9 @@ ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_insert_reports" ON reports FOR INSERT WITH CHECK (true);
 CREATE POLICY "public_read_reports" ON reports FOR SELECT USING (true);
 
+-- Email visibility preference
+ALTER TABLE communities ADD COLUMN email_public boolean NOT NULL DEFAULT true;
+
 -- ── Audit additions ───────────────────────────────────────
 
 ALTER TABLE communities ADD COLUMN updated_at timestamptz;

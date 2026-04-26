@@ -357,6 +357,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     category: CommunityCategory
     website: string | null
     email: string | null
+    emailPublic: boolean
   }) => {
     if (state.panel.type !== 'form') return
     dispatch({ type: 'SET_SUBMIT_ERROR', error: null })

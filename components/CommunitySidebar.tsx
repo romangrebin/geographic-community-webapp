@@ -201,7 +201,7 @@ export default function CommunitySidebar({
             )}
             <div className="mt-1 flex items-center gap-3 text-xs font-medium">
               {c.website && <span className="text-accent">Website ↗</span>}
-              {c.email && <span className="text-accent">Email</span>}
+              {c.email && c.emailPublic && <span className="text-accent">Email</span>}
               {c.claimedBy && <StewardBadge />}
             </div>
           </button>
@@ -310,7 +310,7 @@ function CommunityDetail({
             <p className="text-xs text-emerald-700 leading-relaxed">
               This community has a verified steward who keeps its listing accurate and up to date.
             </p>
-            {community.email && (
+            {community.email && community.emailPublic && (
               <p className="text-xs text-emerald-600 font-medium pt-0.5">{community.email}</p>
             )}
           </div>
@@ -330,7 +330,7 @@ function CommunityDetail({
               <span>{community.website.replace(/^https?:\/\//, '')}</span>
             </a>
           )}
-          {community.email && (
+          {community.email && community.emailPublic && (
             <a
               href={`mailto:${community.email}`}
               className="flex items-center gap-2 text-accent-text hover:text-accent-hi text-sm font-medium transition-colors"
@@ -533,6 +533,7 @@ function EditCommunityPanel({
     community.category === 'neighborhood_association' ? 'neighborhood_association' : 'other'
   )
   const [website, setWebsite] = useState(community.website ?? '')
+  const [emailPublic, setEmailPublic] = useState(community.emailPublic)
   const [saving, setSaving] = useState(false)
 
   // Email: use auth email if signed in, otherwise preserve existing community email
@@ -556,6 +557,7 @@ function EditCommunityPanel({
       category: resolvedCategory,
       website: website.trim() || null,
       email: contactEmail,
+      emailPublic: contactEmail ? emailPublic : true,
     })
     setSaving(false)
   }
@@ -631,10 +633,21 @@ function EditCommunityPanel({
             />
           </div>
           {contactEmail ? (
-            <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
-              Email: <span className="font-medium text-ink-3">{contactEmail}</span>
-              {currentUser?.email && <span className="ml-1 text-accent">(from your account)</span>}
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
+                Email: <span className="font-medium text-ink-3">{contactEmail}</span>
+                {currentUser?.email && <span className="ml-1 text-accent">(from your account)</span>}
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={emailPublic}
+                  onChange={(e) => setEmailPublic(e.target.checked)}
+                  className="rounded border-line-input accent-accent"
+                />
+                <span className="text-xs text-ink-3">Show email address publicly on this listing</span>
+              </label>
+            </div>
           ) : (
             <p className="text-xs text-ink-5">Sign in to add a contact email.</p>
           )}

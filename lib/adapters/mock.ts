@@ -39,6 +39,7 @@ const SEED: Community[] = [
       },
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+    emailPublic: true,
     updatedAt: null,
   },
   {
@@ -66,6 +67,7 @@ const SEED: Community[] = [
       },
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+    emailPublic: true,
     updatedAt: null,
   },
   {
@@ -93,6 +95,7 @@ const SEED: Community[] = [
       },
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(),
+    emailPublic: true,
     updatedAt: null,
   },
 ]

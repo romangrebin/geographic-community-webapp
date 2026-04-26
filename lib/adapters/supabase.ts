@@ -13,6 +13,7 @@ function rowToCommunity(row: Record<string, unknown>): Community {
     website: (row.website as string | null) ?? null,
     email: (row.email as string | null) ?? null,
     geojson: row.geojson as Community['geojson'],
+    emailPublic: (row.email_public as boolean) ?? true,
     createdAt: row.created_at as string,
     updatedAt: (row.updated_at as string | null) ?? null,
     claimedBy: (row.claimed_by as string | null) ?? null,
@@ -58,7 +59,8 @@ export class SupabaseCommunityRepository implements CommunityRepository {
       throw new Error('At least one of website or email is required')
     }
     const slug = await this.deriveUniqueSlug(input.name)
-    const row: Record<string, unknown> = { ...input, slug }
+    const { emailPublic, ...rest } = input
+    const row: Record<string, unknown> = { ...rest, slug, email_public: emailPublic }
     if (options?.claimedBy) {
       row.claimed_by = options.claimedBy
       row.claimed_at = new Date().toISOString()
@@ -114,9 +116,13 @@ export class SupabaseCommunityRepository implements CommunityRepository {
       throw new Error('At least one of website or email is required')
     }
 
+    const { emailPublic, ...rest } = input
+    const dbInput: Record<string, unknown> = { ...rest }
+    if (emailPublic !== undefined) dbInput.email_public = emailPublic
+
     const { data, error } = await this.writeClient
       .from('communities')
-      .update(input)
+      .update(dbInput)
       .eq('id', id)
       .select()
       .single()

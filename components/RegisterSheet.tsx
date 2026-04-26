@@ -14,6 +14,7 @@ type Props = {
     category: CommunityCategory
     website: string | null
     email: string | null
+    emailPublic: boolean
   }) => Promise<void>
   onBack: () => void
   submitError: string | null
@@ -51,6 +52,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
   const [categoryOther, setCategoryOther] = useState('')
   const [website, setWebsite] = useState('')
   const [websiteError, setWebsiteError] = useState<string | null>(null)
+  const [emailPublic, setEmailPublic] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   const category: CommunityCategory =
@@ -79,6 +81,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
       category,
       website: websiteResult.value,
       email: authEmail,
+      emailPublic: authEmail ? emailPublic : true,
     })
     setSubmitting(false)
   }
@@ -163,10 +166,21 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
             {websiteError && <p className="text-xs text-red-500 mt-1">{websiteError}</p>}
           </div>
           {authEmail ? (
-            <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
-              Email: <span className="font-medium text-ink-3">{authEmail}</span>
-              <span className="ml-1 text-accent">(from your account)</span>
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-ink-4 bg-panel border border-line rounded-lg px-3 py-2">
+                Email: <span className="font-medium text-ink-3">{authEmail}</span>
+                <span className="ml-1 text-accent">(from your account)</span>
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={emailPublic}
+                  onChange={(e) => setEmailPublic(e.target.checked)}
+                  className="rounded border-line-input accent-accent"
+                />
+                <span className="text-xs text-ink-3">Show email address publicly on this listing</span>
+              </label>
+            </div>
           ) : (
             <p className="text-xs text-ink-5">
               Sign in to add a contact email to this listing.

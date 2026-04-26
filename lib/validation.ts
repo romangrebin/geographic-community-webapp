@@ -163,6 +163,8 @@ export function validateCommunityInput(raw: unknown): ValidationResult {
     return { ok: false, error: 'Invalid GeoJSON geometry' }
   }
 
+  const emailPublic = input.emailPublic !== false
+
   return {
     ok: true,
     sanitized: {
@@ -171,6 +173,7 @@ export function validateCommunityInput(raw: unknown): ValidationResult {
       category,
       website,
       email,
+      emailPublic,
       geojson: input.geojson as CommunityInput['geojson'],
     },
   }
@@ -279,6 +282,10 @@ export function validateCommunityUpdate(raw: unknown): { ok: true; sanitized: Pa
       return { ok: false, error: 'Invalid GeoJSON geometry' }
     }
     sanitized.geojson = input.geojson as CommunityInput['geojson']
+  }
+
+  if ('emailPublic' in input) {
+    sanitized.emailPublic = input.emailPublic !== false
   }
 
   if (Object.keys(sanitized).length === 0) {

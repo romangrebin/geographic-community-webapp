@@ -11,6 +11,7 @@ export type Community = {
   website: string | null
   email: string | null
   geojson: Feature<Polygon | MultiPolygon>
+  emailPublic: boolean
   createdAt: string
   updatedAt: string | null
   claimedBy: string | null
@@ -23,6 +24,7 @@ export type CommunityInput = {
   category: CommunityCategory
   website: string | null
   email: string | null
+  emailPublic: boolean
   geojson: Feature<Polygon | MultiPolygon>
 }
 
