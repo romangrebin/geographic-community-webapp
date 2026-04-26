@@ -67,3 +67,54 @@ export async function POST(
 
   return NextResponse.json(updated)
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!checkOrigin(req)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const authUser = process.env.NEXT_PUBLIC_SUPABASE_URL ? await getUser(req) : null
+  if (!authUser) {
+    return NextResponse.json({ error: 'Sign in to release stewardship.' }, { status: 401 })
+  }
+
+  const { id } = await params
+  const community = await getCommunity(id)
+  if (!community) {
+    return NextResponse.json({ error: 'Community not found' }, { status: 404 })
+  }
+
+  if (community.claimedBy !== authUser.id) {
+    return NextResponse.json({ error: 'You are not the steward of this community.' }, { status: 403 })
+  }
+
+  const client = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data, error } = await client
+    .from('communities')
+    .update({ claimed_by: null, claimed_at: null, email: null })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error(error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  const updated = {
+    ...community,
+    claimedBy: null,
+    claimedAt: null,
+    email: null,
+    updatedAt: (data.updated_at as string | null) ?? null,
+  }
+
+  return NextResponse.json(updated)
+}

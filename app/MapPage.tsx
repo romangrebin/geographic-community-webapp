@@ -44,6 +44,7 @@ export default function MapPage(props: Props) {
     handleRegisterSubmit,
     handleUpdateCommunity,
     handleClaimCommunity,
+    handleReleaseStewardship,
     initialQueryDoneRef,
   } = useMapPageState(props, mapRef)
 
@@ -131,6 +132,7 @@ export default function MapPage(props: Props) {
       onCancelEdit={() => dispatch({ type: 'CANCEL_EDIT' })}
       onUpdateCommunity={handleUpdateCommunity}
       onClaimCommunity={handleClaimCommunity}
+      onReleaseStewardship={handleReleaseStewardship}
       submitError={submitError}
       onBack={() => dispatch({ type: 'BACK_TO_LIST' })}
       onClose={() => dispatch({ type: 'CLOSE_PANEL' })}

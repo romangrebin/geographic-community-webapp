@@ -54,6 +54,7 @@ type Props = {
   onCancelEdit?: () => void
   onUpdateCommunity?: (id: string, data: Partial<CommunityInput>) => Promise<void>
   onClaimCommunity?: (id: string) => Promise<void>
+  onReleaseStewardship?: (id: string) => Promise<void>
   submitError?: string | null
   onBack?: () => void
   onClose?: () => void
@@ -77,6 +78,7 @@ export default function CommunitySidebar({
   onCancelEdit,
   onUpdateCommunity,
   onClaimCommunity,
+  onReleaseStewardship,
   submitError,
   onBack,
   onClose,
@@ -108,6 +110,7 @@ export default function CommunitySidebar({
         onDelete={canEdit && onDeleteCommunity ? (id) => onDeleteCommunity(id) : undefined}
         onEdit={canEdit && onEditCommunity ? () => onEditCommunity(selectedCommunity) : undefined}
         onClaim={canClaim && onClaimCommunity ? () => onClaimCommunity(selectedCommunity.id) : undefined}
+        onReleaseStewardship={isOwner && onReleaseStewardship ? () => onReleaseStewardship(selectedCommunity.id) : undefined}
       />
     )
   }
@@ -214,12 +217,14 @@ function CommunityDetail({
   onDelete,
   onEdit,
   onClaim,
+  onReleaseStewardship,
 }: {
   community: Community
   onBack?: () => void
   onDelete?: (id: string) => void
   onEdit?: () => void
   onClaim?: () => void
+  onReleaseStewardship?: () => Promise<void>
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmName, setConfirmName] = useState('')
@@ -231,6 +236,15 @@ function CommunityDetail({
   const [reportDone, setReportDone] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
+  const [confirmingRelease, setConfirmingRelease] = useState(false)
+  const [releasing, setReleasing] = useState(false)
+
+  const handleReleaseStewardship = async () => {
+    setReleasing(true)
+    await onReleaseStewardship?.()
+    setReleasing(false)
+    setConfirmingRelease(false)
+  }
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -359,6 +373,15 @@ function CommunityDetail({
             </button>
           )}
 
+          {onReleaseStewardship && !confirmingRelease && (
+            <button
+              onClick={() => setConfirmingRelease(true)}
+              className="block text-xs text-ink-5 hover:text-red-500 transition-colors cursor-pointer"
+            >
+              Release stewardship…
+            </button>
+          )}
+
           {onDelete && !confirmingDelete && (
             <button
               onClick={() => setConfirmingDelete(true)}
@@ -392,6 +415,30 @@ function CommunityDetail({
               </button>
               <button
                 onClick={() => { setConfirmingDelete(false); setConfirmName('') }}
+                className="flex-1 border border-line text-ink-2 py-1.5 rounded-lg text-sm hover:bg-panel-2 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {confirmingRelease && (
+          <div className="border border-red-200 rounded-xl p-4 space-y-3 bg-red-50">
+            <p className="text-sm font-medium text-red-700">Release stewardship?</p>
+            <p className="text-xs text-red-600 leading-relaxed">
+              You will no longer be the steward of this community. Anyone will be able to edit it until a new steward claims it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleReleaseStewardship}
+                disabled={releasing}
+                className="flex-1 bg-red-600 text-white py-1.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {releasing ? 'Releasing…' : 'Release stewardship'}
+              </button>
+              <button
+                onClick={() => setConfirmingRelease(false)}
                 className="flex-1 border border-line text-ink-2 py-1.5 rounded-lg text-sm hover:bg-panel-2 transition-colors cursor-pointer"
               >
                 Cancel

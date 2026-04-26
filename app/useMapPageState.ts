@@ -428,6 +428,20 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     }
   }, [])
 
+  const handleReleaseStewardship = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/communities/${id}/claim`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(body.error ?? 'Failed to release stewardship')
+      }
+      const updated: Community = await res.json()
+      dispatch({ type: 'CLAIM_COMMUNITY', community: updated })
+    } catch (e) {
+      dispatch({ type: 'SET_SUBMIT_ERROR', error: e instanceof Error ? e.message : 'An unexpected error occurred' })
+    }
+  }, [])
+
   // ── Stale-closure guard for the ESC handler ───────────
   const stateRef = useRef(state)
   useEffect(() => { stateRef.current = state })
@@ -554,6 +568,7 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     handleRegisterSubmit,
     handleUpdateCommunity,
     handleClaimCommunity,
+    handleReleaseStewardship,
     initialQueryDoneRef,
   }
 }
