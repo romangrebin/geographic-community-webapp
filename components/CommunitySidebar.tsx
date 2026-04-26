@@ -673,20 +673,22 @@ function AboutPanel({ onClose }: { onClose?: () => void }) {
         {onClose && <button onClick={onClose} className={closeBtn}>&times;</button>}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 text-sm text-ink-3 leading-relaxed">
+        <p> 
+          Click a point on the map, enter an address, or browse All Communities to discover communities.
+        </p>
         <p>
           <strong className="text-ink">geographic.community</strong> is a map-first public directory
-          for geographically-defined communities: neighborhood associations, block clubs, and similar
-          organizations whose membership is solely determined by where you live.
+          for discovering geographically-defined communities: neighborhood associations, block clubs,
+          and similar organizations whose membership is solely determined by where you live (or work).
         </p>
         <p>
           The product is a discovery tool, not a social network; there are no feeds, posts, or
           messaging, and no account is required to browse.
         </p>
         <p>
-          Anybody is able to create a community, but any community created by non-authenticated users
-          can be edited, claimed, or deleted by anyone. In order to register a stable community,
-          sign-in (its easy!) with the public-facing email address that members should use to contact
-          community steward(s).
+          Anybody can register a community, but only communities registered or claimed by a signed-in user
+          are stable and safe from anonymous edits or updates. If registering your community, sign-in (its easy!)
+          with the public-facing email address that members should use to contact community steward(s).
         </p>
         <p>
           Developed by{' '}
