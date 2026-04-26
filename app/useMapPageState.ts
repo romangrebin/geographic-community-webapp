@@ -13,7 +13,7 @@ export const TIER2_THRESHOLD = 100
 export type Panel =
   | { type: 'closed' }
   | { type: 'explore' }
-  | { type: 'detail'; community: Community }
+  | { type: 'detail'; community: Community; from?: 'browse' }
   | { type: 'edit'; community: Community }
   | { type: 'about' }
   | { type: 'browse' }
@@ -148,7 +148,14 @@ function reducer(state: State, action: Action): State {
       return { ...state, pointResults: [], pointLoading: false, pointOffline: true }
 
     case 'SELECT_COMMUNITY':
-      return { ...state, panel: { type: 'detail', community: action.community } }
+      return {
+        ...state,
+        panel: {
+          type: 'detail',
+          community: action.community,
+          from: state.panel.type === 'browse' ? 'browse' : undefined,
+        },
+      }
 
     case 'EDIT_COMMUNITY':
       // Enter edit mode: activate vertex editing on the map immediately
@@ -185,6 +192,9 @@ function reducer(state: State, action: Action): State {
 
     case 'BACK_TO_LIST':
       if (state.panel.type === 'browse') return { ...state, panel: { type: 'closed' } }
+      if (state.panel.type === 'detail' && state.panel.from === 'browse') {
+        return { ...state, panel: { type: 'browse' } }
+      }
       // Return to explore — point results are preserved in top-level state
       return { ...state, panel: state.pointClicked ? { type: 'explore' } : { type: 'closed' } }
 

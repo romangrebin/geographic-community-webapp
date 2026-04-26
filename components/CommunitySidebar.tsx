@@ -160,7 +160,7 @@ export default function CommunitySidebar({
             filtered.map((c) => (
               <button
                 key={c.id}
-                onClick={() => { onBrowseModeChange?.(false); setSearchQuery(''); onSelectCommunity?.(c) }}
+                onClick={() => { setSearchQuery(''); onSelectCommunity?.(c) }}
                 className={communityRow}
               >
                 <div className="flex items-start justify-between gap-2">
