@@ -16,6 +16,8 @@ export type Panel =
   | { type: 'detail'; community: Community; from?: 'browse' }
   | { type: 'edit'; community: Community }
   | { type: 'about' }
+  | { type: 'privacy' }
+  | { type: 'terms' }
   | { type: 'browse' }
   | { type: 'form'; geojson: Feature<Polygon | MultiPolygon> }
 
@@ -63,6 +65,8 @@ type Action =
   | { type: 'CANCEL_EDIT' }
   | { type: 'BACK_TO_LIST' }
   | { type: 'SHOW_ABOUT' }
+  | { type: 'SHOW_PRIVACY' }
+  | { type: 'SHOW_TERMS' }
   | { type: 'SHOW_BROWSE' }
   | { type: 'CLOSE_PANEL' }
   | { type: 'SET_SUBMIT_ERROR'; error: string | null }
@@ -201,6 +205,12 @@ function reducer(state: State, action: Action): State {
     case 'SHOW_ABOUT':
       return { ...state, panel: { type: 'about' } }
 
+    case 'SHOW_PRIVACY':
+      return { ...state, panel: { type: 'privacy' } }
+
+    case 'SHOW_TERMS':
+      return { ...state, panel: { type: 'terms' } }
+
     case 'SHOW_BROWSE':
       return { ...state, panel: { type: 'browse' } }
 
@@ -249,7 +259,7 @@ type InitProps = {
   initialCommunities: Community[]
   initialSelectedCommunity?: Community | null
   initialMode?: 'explore' | 'draw'
-  initialPanel?: 'about' | 'browse'
+  initialPanel?: 'about' | 'browse' | 'privacy' | 'terms'
   initialLat?: number | null
   initialLng?: number | null
 }
@@ -271,6 +281,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
     ? { type: 'explore' }
     : initialPanelType === 'about'
     ? { type: 'about' }
+    : initialPanelType === 'privacy'
+    ? { type: 'privacy' }
+    : initialPanelType === 'terms'
+    ? { type: 'terms' }
     : initialPanelType === 'browse'
     ? { type: 'browse' }
     : { type: 'closed' }
@@ -475,6 +489,8 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       } else if (
         panel.type === 'explore' ||
         panel.type === 'about' ||
+        panel.type === 'privacy' ||
+        panel.type === 'terms' ||
         panel.type === 'browse'
       ) {
         dispatch({ type: 'CLOSE_PANEL' })
@@ -498,6 +514,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
       target = `/c/${state.panel.community.slug}`
     } else if (state.panel.type === 'about') {
       target = '/about'
+    } else if (state.panel.type === 'privacy') {
+      target = '/privacy'
+    } else if (state.panel.type === 'terms') {
+      target = '/terms'
     } else if (state.panel.type === 'browse') {
       target = '/all'
     } else if (state.clickMarker) {
@@ -518,6 +538,10 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
         dispatch({ type: 'START_DRAW' })
       } else if (path === '/about') {
         dispatch({ type: 'SHOW_ABOUT' })
+      } else if (path === '/privacy') {
+        dispatch({ type: 'SHOW_PRIVACY' })
+      } else if (path === '/terms') {
+        dispatch({ type: 'SHOW_TERMS' })
       } else if (path === '/all') {
         dispatch({ type: 'SHOW_BROWSE' })
       } else if (path.startsWith('/c/')) {

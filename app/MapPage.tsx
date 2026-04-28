@@ -19,7 +19,7 @@ type Props = {
   initialCommunities: Community[]
   initialSelectedCommunity?: Community | null
   initialMode?: 'explore' | 'draw'
-  initialPanel?: 'about' | 'browse'
+  initialPanel?: 'about' | 'browse' | 'privacy' | 'terms'
   initialLat?: number | null
   initialLng?: number | null
   flashMessage?: string
@@ -123,7 +123,12 @@ export default function MapPage(props: Props) {
       selectedCommunity={panel.type === 'detail' ? panel.community : null}
       editingCommunity={panel.type === 'edit' ? panel.community : null}
       showAbout={panel.type === 'about'}
+      showPrivacy={panel.type === 'privacy'}
+      showTerms={panel.type === 'terms'}
       browseMode={panel.type === 'browse'}
+      onShowPrivacy={() => dispatch({ type: 'SHOW_PRIVACY' })}
+      onShowTerms={() => dispatch({ type: 'SHOW_TERMS' })}
+      onShowAbout={() => dispatch({ type: 'SHOW_ABOUT' })}
       currentUser={currentUser}
       onBrowseModeChange={(active) => dispatch(active ? { type: 'SHOW_BROWSE' } : { type: 'CLOSE_PANEL' })}
       onSelectCommunity={handleSelectCommunity}

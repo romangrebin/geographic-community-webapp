@@ -23,8 +23,7 @@ export default function AddressSearch({ onSelect }: Props) {
     if (q.length < 3) { setResults([]); return }
     setLoading(true)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`)
       const data: NominatimResult[] = await res.json()
       setResults(data)
       setOpen(true)

@@ -45,6 +45,11 @@ type Props = {
   selectedCommunity?: Community | null
   editingCommunity?: Community | null
   showAbout?: boolean
+  showPrivacy?: boolean
+  showTerms?: boolean
+  onShowPrivacy?: () => void
+  onShowTerms?: () => void
+  onShowAbout?: () => void
   browseMode?: boolean
   currentUser?: User | null
   onBrowseModeChange?: (active: boolean) => void
@@ -69,6 +74,11 @@ export default function CommunitySidebar({
   selectedCommunity,
   editingCommunity,
   showAbout,
+  showPrivacy,
+  showTerms,
+  onShowPrivacy,
+  onShowTerms,
+  onShowAbout,
   browseMode = false,
   currentUser,
   onBrowseModeChange,
@@ -86,7 +96,9 @@ export default function CommunitySidebar({
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'neighborhood_association' | 'other'>('all')
 
-  if (showAbout) return <AboutPanel onClose={onClose} />
+  if (showAbout) return <AboutPanel onClose={onClose} onShowPrivacy={onShowPrivacy} onShowTerms={onShowTerms} />
+  if (showPrivacy) return <PrivacyPanel onClose={onClose} onBack={onShowAbout} />
+  if (showTerms) return <TermsPanel onClose={onClose} onBack={onShowAbout} />
 
   if (editingCommunity) {
     return (
@@ -697,7 +709,7 @@ function EditCommunityPanel({
   )
 }
 
-function AboutPanel({ onClose }: { onClose?: () => void }) {
+function AboutPanel({ onClose, onShowPrivacy, onShowTerms }: { onClose?: () => void; onShowPrivacy?: () => void; onShowTerms?: () => void }) {
   return (
     <div className="flex flex-col h-full bg-panel">
       <div className={panelHeader}>
@@ -741,6 +753,113 @@ function AboutPanel({ onClose }: { onClose?: () => void }) {
             </svg>
             View source on GitHub
           </a>
+        </p>
+        <p className="pt-2 border-t border-line text-xs text-ink-5">
+          <button onClick={onShowPrivacy} className="text-accent hover:text-accent-hi font-medium cursor-pointer">Privacy</button>
+          {' · '}
+          <button onClick={onShowTerms} className="text-accent hover:text-accent-hi font-medium cursor-pointer">Terms</button>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function PrivacyPanel({ onClose, onBack }: { onClose?: () => void; onBack?: () => void }) {
+  return (
+    <div className="flex flex-col h-full bg-panel">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="shrink-0 flex items-center gap-1 text-sm font-medium text-ink-3 hover:text-ink px-2 py-1 rounded-lg hover:bg-panel-hover transition-colors cursor-pointer"
+          >
+            ← Back
+          </button>
+        )}
+        <h2 className="font-semibold text-ink flex-1">Privacy</h2>
+        {onClose && <button onClick={onClose} className={closeBtn}>&times;</button>}
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm text-ink-3 leading-relaxed">
+        <p>
+          <strong className="text-ink">geographic.community</strong> is a public directory and is
+          designed to collect as little personal data as possible.
+        </p>
+        <p className="font-semibold text-ink pt-2">What we store</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Community listings (name, description, polygon, category) submitted by users — these are public.</li>
+          <li>Optional contact email for a community. If a steward signs in, that email is the public contact unless they opt out via &ldquo;Show email publicly&rdquo;.</li>
+          <li>Authentication records for stewards (email + Supabase Auth identifiers) — used only to verify ownership.</li>
+        </ul>
+        <p className="font-semibold text-ink pt-2">Analytics</p>
+        <p>
+          We use Vercel Analytics, which counts page views without using cookies and does not store
+          IP addresses. Visitor counts are based on a salted daily hash. No personal profiles are
+          built.
+        </p>
+        <p className="font-semibold text-ink pt-2">Third parties</p>
+        <p>
+          Address search is powered by OpenStreetMap&apos;s Nominatim service. The map tiles are served by
+          OpenFreeMap. Authentication and storage are handled by Supabase. Hosting is on Vercel.
+        </p>
+        <p className="font-semibold text-ink pt-2">Your rights</p>
+        <p>
+          To request deletion of your steward account, email{' '}
+          <span className="font-mono text-xs bg-chip text-accent-text px-1.5 py-0.5 rounded border border-line">
+            roman.b.grebin [at] gmail.com
+          </span>
+          .
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TermsPanel({ onClose, onBack }: { onClose?: () => void; onBack?: () => void }) {
+  return (
+    <div className="flex flex-col h-full bg-panel">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-line bg-panel-2 shrink-0">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="shrink-0 flex items-center gap-1 text-sm font-medium text-ink-3 hover:text-ink px-2 py-1 rounded-lg hover:bg-panel-hover transition-colors cursor-pointer"
+          >
+            ← Back
+          </button>
+        )}
+        <h2 className="font-semibold text-ink flex-1">Terms of Use</h2>
+        {onClose && <button onClick={onClose} className={closeBtn}>&times;</button>}
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm text-ink-3 leading-relaxed">
+        <p>
+          By using <strong className="text-ink">geographic.community</strong>, you agree to the
+          terms below. The app is provided as-is, with no warranty.
+        </p>
+        <p className="font-semibold text-ink pt-2">User-submitted content</p>
+        <p>
+          Anyone can register a community. By submitting a listing, you confirm that the
+          information is accurate to your knowledge and that you have the right to publish it.
+          Unclaimed listings can be edited or deleted by anyone; claimed listings can only be
+          edited by their steward.
+        </p>
+        <p className="font-semibold text-ink pt-2">Acceptable use</p>
+        <p>
+          Don&apos;t submit content that is fraudulent, impersonates real organizations, infringes on
+          others&apos; rights, or is otherwise unlawful. We reserve the right to remove any listing or
+          steward account at our discretion.
+        </p>
+        <p className="font-semibold text-ink pt-2">No guarantee of accuracy</p>
+        <p>
+          Community boundaries and contact details are user-submitted. We don&apos;t currently verify
+          them. Treat listings as a starting point for discovery, not as authoritative records.
+        </p>
+        <p className="font-semibold text-ink pt-2">Reports & disputes</p>
+        <p>
+          Use the &ldquo;Report&rdquo; option on any listing to flag inaccuracies or abuse. For other
+          concerns, email{' '}
+          <span className="font-mono text-xs bg-chip text-accent-text px-1.5 py-0.5 rounded border border-line">
+            roman.b.grebin [at] gmail.com
+          </span>
+          .
         </p>
       </div>
     </div>
