@@ -20,7 +20,7 @@ type DrawInstance = {
 
 type Props = {
   communities?: Community[]
-  onMapClick?: (lat: number, lng: number, communityIds: string[]) => void
+  onMapClick?: (lat: number, lng: number, communityIds?: string[]) => void
   onCommunityHover?: (communities: Community[]) => void
   onReady?: () => void
   drawActive?: boolean
@@ -89,6 +89,7 @@ const Map = forwardRef<MapHandle, Props>(function Map(
   const mapRef = useRef<maplibregl.Map | null>(null)
   const drawRef = useRef<DrawInstance | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
+  const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null)
   const hoveredIdsRef = useRef<string[]>([])
   const selectedIdRef = useRef<string | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -136,13 +137,12 @@ const Map = forwardRef<MapHandle, Props>(function Map(
 
     // Place controls top-LEFT so the right-side panel never obscures them.
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left')
-    map.addControl(
-      new maplibregl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
-      }),
-      'top-left'
-    )
+    const geolocate = new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+    })
+    geolocateRef.current = geolocate
+    map.addControl(geolocate, 'top-left')
 
     map.on('load', () => {
       map.addSource(COMMUNITY_SOURCE, {
@@ -396,6 +396,21 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     map.on('click', handler)
     return () => { map.off('click', handler) }
   }, [onMapClick, drawActive, mapReady])
+
+  // Geolocate button — fires onMapClick when the user's location is found,
+  // so a pin drops and the sidebar shows communities at their location.
+  useEffect(() => {
+    const control = geolocateRef.current
+    if (!control || !onMapClick) return
+    // No communityIds — triggers the API path in handleMapClick, which is correct
+    // here since the map may have just flown to a new location and rendered features
+    // won't reflect the new viewport yet.
+    const handler = (e: GeolocationPosition) => {
+      onMapClick(e.coords.latitude, e.coords.longitude)
+    }
+    control.on('geolocate', handler)
+    return () => { control.off('geolocate', handler) }
+  }, [onMapClick])
 
   // Hover handler — uses queryRenderedFeatures on every mousemove so the tooltip
   // reliably clears when the cursor moves to empty space, and naturally handles
