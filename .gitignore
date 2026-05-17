@@ -46,6 +46,9 @@ yarn-error.log*
 # local dev data
 .data/
 
+# database backups (contain community emails — keep local)
+/backups/
+
 # vercel
 .vercel
 
