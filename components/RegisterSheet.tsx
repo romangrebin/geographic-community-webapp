@@ -19,6 +19,8 @@ type Props = {
   onBack: () => void
   submitError: string | null
   currentUser?: User | null
+  /** Set while the boundary currently fails geometry/size validation (see useMapPageState). */
+  drawError?: string | null
 }
 
 type UrlResult =
@@ -44,7 +46,7 @@ function normalizeUrl(raw: string): UrlResult {
 const inputClass = 'w-full border border-line-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-panel text-ink placeholder:text-ink-4 transition-shadow'
 const labelClass = 'block text-sm font-medium text-ink-2 mb-1'
 
-export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, currentUser }: Props) {
+export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, currentUser, drawError }: Props) {
   const authEmail = currentUser?.email ?? null
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -61,7 +63,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
       : categoryOther.trim() || 'other'
 
   const hasContact = website.trim() !== '' || !!authEmail
-  const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError &&
+  const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError && !drawError &&
     (categoryChoice !== 'other' || categoryOther.trim() !== '')
 
   const validateWebsite = () => {
@@ -202,6 +204,11 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
         {!authEmail && (
           <p className="text-xs text-red-400 text-center">
             Tip: sign in first (button above on navbar) so only you can edit or remove this listing.
+          </p>
+        )}
+        {drawError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+            Adjust the boundary on the map before registering.
           </p>
         )}
         <button

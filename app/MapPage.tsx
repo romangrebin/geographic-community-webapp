@@ -112,6 +112,7 @@ export default function MapPage(props: Props) {
       onBack={() => dispatch({ type: 'START_DRAW' })}
       submitError={submitError}
       currentUser={currentUser}
+      drawError={drawError}
     />
   ) : (
     <CommunitySidebar
@@ -136,6 +137,7 @@ export default function MapPage(props: Props) {
       onEditCommunity={(c) => dispatch({ type: 'EDIT_COMMUNITY', community: c })}
       onCancelEdit={() => dispatch({ type: 'CANCEL_EDIT' })}
       onUpdateCommunity={handleUpdateCommunity}
+      drawError={drawError}
       onClaimCommunity={handleClaimCommunity}
       onReleaseStewardship={handleReleaseStewardship}
       submitError={submitError}
@@ -252,8 +254,15 @@ export default function MapPage(props: Props) {
 
       {/* Everything below the header */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Draw mode instruction / error banner */}
-        {drawMode === 'drawing' && (drawError || panel.type !== 'edit') && (
+        {/* Draw mode instruction / error banner.
+            The error half shows any time drawing/editing is active (isDrawActive),
+            not just while still placing the initial polygon — otherwise a size-limit
+            error from dragging a vertex after the initial polygon is done would
+            silently have nowhere to render. The instruction half only makes sense
+            before a polygon exists yet, i.e. panel.type === 'closed' (drawMode stays
+            'drawing' throughout the whole session, including after completion and
+            during edit-boundary, so it can't be used to distinguish this phase). */}
+        {isDrawActive && (drawError || panel.type === 'closed') && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-panel rounded-xl shadow-lg px-4 py-3 text-sm text-ink-2 border border-line max-w-md pointer-events-none">
             {drawError ? (
               <span className="text-red-500 font-medium">{drawError}</span>

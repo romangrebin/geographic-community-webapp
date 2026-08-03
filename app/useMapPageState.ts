@@ -1,11 +1,11 @@
 import { useReducer, useCallback, useEffect, useRef, useState } from 'react'
-import { booleanValid, area, centroid, bbox as turfBbox } from '@turf/turf'
+import { centroid, bbox as turfBbox, booleanEqual } from '@turf/turf'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import type { Community, CommunityCategory, CommunityInput } from '@/lib/types'
 import type { MapHandle } from '@/components/Map'
+import { validatePolygonGeometry } from '@/lib/geometryValidation'
 
 // ── Constants ──────────────────────────────────────────────
-const MAX_AREA_KM2 = 40
 export const TIER2_THRESHOLD = 100
 
 // ── Types ──────────────────────────────────────────────────
@@ -21,7 +21,7 @@ export type Panel =
   | { type: 'browse' }
   | { type: 'form'; geojson: Feature<Polygon | MultiPolygon> }
 
-export type DrawMode = 'off' | 'drawing' | 'drawn'
+export type DrawMode = 'off' | 'drawing'
 
 /**
  * Point-query results live at the top level, not inside the Panel union.
@@ -116,7 +116,6 @@ function reducer(state: State, action: Action): State {
     case 'DRAW_COMPLETE':
       return {
         ...state,
-        drawMode: 'drawn',
         drawError: null,
         panel: { type: 'form', geojson: action.geojson },
       }
@@ -334,13 +333,9 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
   }, [state.drawMode])
 
   const handleDrawComplete = useCallback((feature: Feature<Polygon | MultiPolygon>) => {
-    if (!booleanValid(feature)) {
-      dispatch({ type: 'DRAW_ERROR', error: 'The polygon geometry is invalid. Please redraw.' })
-      return
-    }
-    const areaSqKm = area(feature) / 1_000_000
-    if (areaSqKm > MAX_AREA_KM2) {
-      dispatch({ type: 'DRAW_ERROR', error: `Polygon is too large (${areaSqKm.toFixed(0)} km²). Max is ${MAX_AREA_KM2} km².` })
+    const result = validatePolygonGeometry(feature)
+    if (!result.ok) {
+      dispatch({ type: 'DRAW_ERROR', error: result.error })
       return
     }
     // If we're in edit-boundary mode, update the community's geojson in the edit panel
@@ -416,10 +411,17 @@ export function useMapPageState(props: InitProps, mapRef: React.RefObject<MapHan
 
   const handleUpdateCommunity = useCallback(async (id: string, data: Partial<CommunityInput>) => {
     dispatch({ type: 'SET_SUBMIT_ERROR', error: null })
-    // If the community's geojson was edited via edit-boundary mode, include it
+    // Only include geojson if the boundary was actually redrawn in edit-boundary mode.
+    // Comparing against the original (editGeojson) avoids re-validating an untouched
+    // boundary that may predate today's size limit and would otherwise block
+    // unrelated edits (e.g. just changing the name) on an older, larger community.
     const editPanel = stateRef.current.panel
+    const originalGeojson = stateRef.current.editGeojson
     const payload: Partial<CommunityInput> =
-      editPanel.type === 'edit' && editPanel.community.id === id
+      editPanel.type === 'edit' &&
+      editPanel.community.id === id &&
+      originalGeojson !== null &&
+      !booleanEqual(editPanel.community.geojson, originalGeojson)
         ? { ...data, geojson: editPanel.community.geojson }
         : data
     try {

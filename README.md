@@ -1,6 +1,6 @@
 # geographic.community
 
-A map-first public directory for geographically-defined communities — neighborhood associations, block clubs, HOAs, watersheds, and similar organizations whose membership is determined by where you live.
+A map-first public directory for geographically-defined communities - neighborhood associations, block clubs, HOAs, watersheds, and similar organizations whose membership is determined by where you live.
 
 The goal is discoverability: residents should be able to click anywhere on a map and immediately see what community organizations exist there. There are no feeds, no posts, no messaging. It is a directory, not a social network.
 
@@ -10,24 +10,32 @@ The goal is discoverability: residents should be able to click anywhere on a map
 
 ## Features
 
-- **Map-first browsing** — click anywhere to see communities at that location
-- **Draw to register** — trace a polygon on the map to define a community's boundary
-- **Boundary editing** — drag vertices to adjust an existing boundary
-- **Steward ownership** — sign in with a magic link to claim a community and become its verified steward
-- **Trust badges** — claimed communities display a steward badge on the map and in listings
-- **Report listings** — users can flag inaccurate or spam listings
-- **ntfy notifications** — optional push notifications for new reports
+- **Map-first browsing** - click anywhere to see communities at that location
+- **Draw to register** - trace a polygon on the map to define a community's boundary
+- **Boundary editing** - drag vertices to adjust an existing boundary
+- **Steward ownership** - sign in with a magic link to claim a community and become its verified steward
+- **Trust badges** - claimed communities display a steward badge on the map and in listings
+- **Report listings** - users can flag inaccurate or spam listings
+- **ntfy notifications** - optional push notifications for new reports
 
 ## Tech stack
 
-- **Framework:** [Next.js](https://nextjs.org/) (App Router, TypeScript)
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **Map:** [MapLibre GL JS](https://maplibre.org/) with [Carto](https://carto.com/) basemap tiles
-- **Drawing:** [maplibre-gl-draw](https://github.com/mapbox/mapbox-gl-draw)
-- **Database:** [Supabase](https://supabase.com/) (Postgres + Row Level Security)
-- **Auth:** Supabase magic links (email OTP, no passwords)
-- **Geometry:** [Turf.js](https://turfjs.org/) for area calculations and validation
-- **Deployment:** [Vercel](https://vercel.com/)
+### External services
+
+- **[Supabase](https://supabase.com/)** - Postgres database and magic-link auth (free tier)
+- **[Vercel](https://vercel.com/)** - hosting and edge deployments (free tier)
+- **[porkbun](https://porkbun.com/)** - domain management (around $30/year)
+- **[Carto](https://carto.com/)** - basemap tile service (free public CDN, no account required)
+- **[ntfy](https://ntfy.sh/)** - optional push notifications for new reports (no account required)
+
+### Key open source libraries
+
+- **[Next.js](https://nextjs.org/)** - React framework (App Router, TypeScript)
+- **[Tailwind CSS v4](https://tailwindcss.com/)** - utility-first styling
+- **[MapLibre GL JS](https://maplibre.org/)** - WebGL map rendering
+- **[maplibre-gl-draw](https://github.com/mapbox/mapbox-gl-draw)** - polygon drawing and editing
+- **[Turf.js](https://turfjs.org/)** - geospatial calculations (area, point-in-polygon)
+- **[@supabase/ssr](https://github.com/supabase/ssr)** - cookie-based auth helpers for Next.js
 
 ## Running locally
 
@@ -50,7 +58,7 @@ Fill in `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side writes) |
-| `NTFY_URL` | Optional — ntfy push notification URL for new reports |
+| `NTFY_URL` | Optional - ntfy push notification URL for new reports |
 
 The app also works without Supabase by falling back to a local JSON file at `.data/communities.json`. This is useful for front-end development without a database.
 
@@ -79,16 +87,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The app uses a repository pattern with swappable adapters:
 
-- **`lib/repository.ts`** — interface definition
-- **`lib/adapters/supabase.ts`** — production adapter (Postgres via Supabase)
-- **`lib/adapters/json-file.ts`** — local dev adapter (reads/writes `.data/communities.json`)
-- **`lib/adapters/mock.ts`** — in-memory adapter for tests
+- **`lib/repository.ts`** - interface definition
+- **`lib/adapters/supabase.ts`** - production adapter (Postgres via Supabase)
+- **`lib/adapters/json-file.ts`** - local dev adapter (reads/writes `.data/communities.json`)
+- **`lib/adapters/mock.ts`** - in-memory adapter for tests
 
 The adapter is selected in `lib/db.ts` based on whether `NEXT_PUBLIC_SUPABASE_URL` is set.
 
 ### State machine
 
-All map page state lives in `app/useMapPageState.ts` as a `useReducer`-based state machine. Panel navigation, draw mode, edit mode, and point queries are all modelled as explicit state transitions — no ad-hoc boolean flags.
+All map page state lives in `app/useMapPageState.ts` as a `useReducer`-based state machine. Panel navigation, draw mode, edit mode, and point queries are all modelled as explicit state transitions - no ad-hoc boolean flags.
 
 ### Auth
 
@@ -103,4 +111,4 @@ The app is designed for Vercel. Add the same environment variables from `.env.lo
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

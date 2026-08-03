@@ -1,4 +1,5 @@
 import type { CommunityInput } from './types'
+import type { Feature, Polygon, MultiPolygon } from 'geojson'
 
 /**
  * Server-side input validation for community creation and updates.
@@ -10,7 +11,6 @@ const MAX_NAME_LENGTH = 200
 const MAX_DESCRIPTION_LENGTH = 5000
 const MAX_CATEGORY_LENGTH = 100
 const MAX_GEOJSON_BYTES = 500_000 // ~500 KB
-const MAX_AREA_KM2 = 40
 
 // Categories we recognize; freeform strings are allowed but capped.
 const KNOWN_CATEGORIES = new Set([
@@ -151,13 +151,13 @@ export function validateCommunityInput(raw: unknown): ValidationResult {
     return { ok: false, error: 'GeoJSON geometry must have coordinates' }
   }
 
-  // Area check (deferred import to keep this module light for non-geo callers)
+  // Geometry check (deferred import to keep this module light for non-geo callers, e.g. claim/reports routes)
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { area } = require('@turf/turf')
-    const areaSqKm = area(input.geojson) / 1_000_000
-    if (areaSqKm > MAX_AREA_KM2) {
-      return { ok: false, error: `Polygon is too large (${areaSqKm.toFixed(0)} km²). Max is ${MAX_AREA_KM2} km².` }
+    const { validatePolygonGeometry } = require('./geometryValidation') as typeof import('./geometryValidation')
+    const geometryResult = validatePolygonGeometry(input.geojson as Feature<Polygon | MultiPolygon>)
+    if (!geometryResult.ok) {
+      return { ok: false, error: geometryResult.error }
     }
   } catch {
     return { ok: false, error: 'Invalid GeoJSON geometry' }
@@ -273,10 +273,10 @@ export function validateCommunityUpdate(raw: unknown): { ok: true; sanitized: Pa
     }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { area } = require('@turf/turf')
-      const areaSqKm = area(input.geojson) / 1_000_000
-      if (areaSqKm > MAX_AREA_KM2) {
-        return { ok: false, error: `Polygon is too large (${areaSqKm.toFixed(0)} km²). Max is ${MAX_AREA_KM2} km².` }
+      const { validatePolygonGeometry } = require('./geometryValidation') as typeof import('./geometryValidation')
+      const geometryResult = validatePolygonGeometry(input.geojson as Feature<Polygon | MultiPolygon>)
+      if (!geometryResult.ok) {
+        return { ok: false, error: geometryResult.error }
       }
     } catch {
       return { ok: false, error: 'Invalid GeoJSON geometry' }

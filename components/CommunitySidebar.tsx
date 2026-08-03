@@ -58,6 +58,8 @@ type Props = {
   onEditCommunity?: (c: Community) => void
   onCancelEdit?: () => void
   onUpdateCommunity?: (id: string, data: Partial<CommunityInput>) => Promise<void>
+  /** Set while the boundary currently fails geometry/size validation (see useMapPageState). */
+  drawError?: string | null
   onClaimCommunity?: (id: string) => Promise<void>
   onReleaseStewardship?: (id: string) => Promise<void>
   submitError?: string | null
@@ -87,6 +89,7 @@ export default function CommunitySidebar({
   onEditCommunity,
   onCancelEdit,
   onUpdateCommunity,
+  drawError,
   onClaimCommunity,
   onReleaseStewardship,
   submitError,
@@ -108,6 +111,7 @@ export default function CommunitySidebar({
         onCancel={onCancelEdit}
         onSave={onUpdateCommunity}
         submitError={submitError ?? null}
+        drawError={drawError ?? null}
       />
     )
   }
@@ -547,12 +551,14 @@ function EditCommunityPanel({
   onCancel,
   onSave,
   submitError,
+  drawError,
 }: {
   community: Community
   currentUser?: User | null
   onCancel?: () => void
   onSave?: (id: string, data: Partial<CommunityInput>) => Promise<void>
   submitError: string | null
+  drawError: string | null
 }) {
   const [name, setName] = useState(community.name)
   const [description, setDescription] = useState(community.description ?? '')
@@ -575,7 +581,7 @@ function EditCommunityPanel({
     : categoryOther.trim() || 'other'
 
   const hasContact = website.trim() !== '' || !!contactEmail
-  const canSave = name.trim() !== '' && hasContact && !saving &&
+  const canSave = name.trim() !== '' && hasContact && !saving && !drawError &&
     (categoryChoice !== 'other' || categoryOther.trim() !== '')
 
   const handleSave = async (e: React.FormEvent) => {
@@ -698,6 +704,11 @@ function EditCommunityPanel({
         <p className="text-xs text-ink-5 text-center">
           Drag the boundary vertices on the map to adjust the shape.
         </p>
+        {drawError && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+            Adjust the boundary on the map before saving.
+          </p>
+        )}
         <button
           type="submit" disabled={!canSave}
           className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
