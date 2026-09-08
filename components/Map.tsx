@@ -111,6 +111,13 @@ const Map = forwardRef<MapHandle, Props>(function Map(
     const polyFillOpacity = 0.08
     const polyFillOpacityHover = 0.22
 
+    // CARTO began requiring an API key on basemaps.cartocdn.com in Aug 2026; without
+    // one, tiles come back stamped "API KEY REQUIRED". The key is free (5M tiles/mo)
+    // and domain-restricted in the CARTO dashboard, so exposing it client-side is
+    // expected. Note the query param is `key`, not `api_key`.
+    const cartoApiKey = process.env.NEXT_PUBLIC_CARTO_API_KEY
+    const cartoKeyParam = cartoApiKey ? `?key=${cartoApiKey}` : ''
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: {
@@ -120,9 +127,7 @@ const Map = forwardRef<MapHandle, Props>(function Map(
           carto: {
             type: 'raster',
             tiles: [
-              `https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
-              `https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
-              `https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`,
+              `https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png${cartoKeyParam}`,
             ],
             tileSize: 256,
             attribution: '© OpenStreetMap © CARTO',

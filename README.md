@@ -25,7 +25,7 @@ The goal is discoverability: residents should be able to click anywhere on a map
 - **[Supabase](https://supabase.com/)** - Postgres database and magic-link auth (free tier)
 - **[Vercel](https://vercel.com/)** - hosting and edge deployments (free tier)
 - **[porkbun](https://porkbun.com/)** - domain management (around $30/year)
-- **[Carto](https://carto.com/)** - basemap tile service (free public CDN, no account required)
+- **[Carto](https://carto.com/)** - basemap tile service (free tier, 5M tiles/month, API key required)
 - **[ntfy](https://ntfy.sh/)** - optional push notifications for new reports (no account required)
 
 ### Key open source libraries
@@ -58,6 +58,7 @@ Fill in `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side writes) |
+| `NEXT_PUBLIC_CARTO_API_KEY` | CARTO basemap API key ([free tier](https://carto.com/basemaps/apikey/), 5M tiles/month). Without it the map tiles show an "API KEY REQUIRED" watermark. |
 | `NTFY_URL` | Optional - ntfy push notification URL for new reports |
 
 The app also works without Supabase by falling back to a local JSON file at `.data/communities.json`. This is useful for front-end development without a database.

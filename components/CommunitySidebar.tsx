@@ -810,7 +810,7 @@ function PrivacyPanel({ onClose, onBack }: { onClose?: () => void; onBack?: () =
         <p className="font-semibold text-ink pt-2">Third parties</p>
         <p>
           Address search is powered by OpenStreetMap&apos;s Nominatim service. The map tiles are served by
-          OpenFreeMap. Authentication and storage are handled by Supabase. Hosting is on Vercel.
+          CARTO. Authentication and storage are handled by Supabase. Hosting is on Vercel.
         </p>
         <p className="font-semibold text-ink pt-2">Your rights</p>
         <p>
