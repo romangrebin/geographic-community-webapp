@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import type { CommunityCategory } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
@@ -63,8 +63,19 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
       : categoryOther.trim() || 'other'
 
   const hasContact = website.trim() !== '' || !!authEmail
+  const isOtherTypeMissing = categoryChoice === 'other' && categoryOther.trim() === ''
   const canSubmit = name.trim() !== '' && hasContact && !submitting && !websiteError && !drawError &&
-    (categoryChoice !== 'other' || categoryOther.trim() !== '')
+    !isOtherTypeMissing
+
+  // The "describe the Other type" warning stays hidden until the user moves past
+  // the field without filling it in: typing in a lower field, or clicking Register.
+  const [hasSkippedOtherType, setHasSkippedOtherType] = useState(false)
+  const showOtherTypeError = hasSkippedOtherType && isOtherTypeMissing
+  const otherTypeInputRef = useRef<HTMLInputElement>(null)
+
+  const flagOtherTypeIfSkipped = () => {
+    if (isOtherTypeMissing) setHasSkippedOtherType(true)
+  }
 
   const validateWebsite = () => {
     const result = normalizeUrl(website)
@@ -73,6 +84,11 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isOtherTypeMissing) {
+      setHasSkippedOtherType(true)
+      otherTypeInputRef.current?.focus() // also scrolls it into view
+      return
+    }
     if (!canSubmit) return
     const websiteResult = normalizeUrl(website)
     if (!websiteResult.ok) { setWebsiteError(websiteResult.error); return }
@@ -118,7 +134,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
               <button
                 key={val}
                 type="button"
-                onClick={() => setCategoryChoice(val)}
+                onClick={() => { setCategoryChoice(val); setHasSkippedOtherType(false) }}
                 className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
                   categoryChoice === val
                     ? 'bg-accent text-white border-accent shadow-sm'
@@ -130,13 +146,21 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
             ))}
           </div>
           {categoryChoice === 'other' && (
-            <input
-              type="text" value={categoryOther}
-              onChange={(e) => setCategoryOther(e.target.value)}
-              placeholder="e.g. Block Club, Watershed District…"
-              className={`mt-2 ${inputClass}`}
-              required
-            />
+            <>
+              <input
+                ref={otherTypeInputRef}
+                type="text" value={categoryOther}
+                onChange={(e) => setCategoryOther(e.target.value)}
+                placeholder="e.g. Block Club, Watershed District…"
+                aria-invalid={showOtherTypeError}
+                className={`mt-2 ${inputClass} ${showOtherTypeError ? 'border-red-400 focus:ring-red-500 focus:border-red-400' : ''}`}
+              />
+              {showOtherTypeError && (
+                <p role="alert" className="text-xs text-red-500 mt-1">
+                  Please enter a community type.
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -144,7 +168,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
           <label className={labelClass}>Description <span className="text-ink-5 font-normal">(optional)</span></label>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => { setDescription(e.target.value); flagOtherTypeIfSkipped() }}
             rows={3}
             placeholder="What does your community do? How can residents get involved?"
             className={`${inputClass} resize-none`}
@@ -160,7 +184,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
             <label className="block text-xs text-ink-4 mb-1">Website</label>
             <input
               type="text" value={website}
-              onChange={(e) => { setWebsite(e.target.value); if (websiteError) setWebsiteError(null) }}
+              onChange={(e) => { setWebsite(e.target.value); if (websiteError) setWebsiteError(null); flagOtherTypeIfSkipped() }}
               onBlur={validateWebsite}
               placeholder="example.com"
               className={`${inputClass} ${websiteError ? 'border-red-400 focus:ring-red-500 focus:border-red-400' : ''}`}
@@ -202,7 +226,7 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
 
       <div className="px-4 py-3 border-t border-line shrink-0 space-y-2">
         {!authEmail && (
-          <p className="text-xs text-red-400 text-center">
+          <p className="text-xs text-ink-5 text-center">
             Tip: sign in first (button above on navbar) so only you can edit or remove this listing.
           </p>
         )}
@@ -211,9 +235,15 @@ export default function RegisterSheet({ geojson, onSubmit, onBack, submitError, 
             Adjust the boundary on the map before registering.
           </p>
         )}
+        {/* Not `disabled` while only the Other type is missing, so a click can reveal
+            that warning. It still looks disabled, and handleSubmit blocks it. */}
         <button
-          type="submit" disabled={!canSubmit}
-          className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold hover:bg-accent-hi transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          type="submit"
+          disabled={submitting}
+          aria-disabled={!canSubmit}
+          className={`w-full bg-accent text-white py-2.5 rounded-xl font-semibold transition-colors shadow-sm ${
+            canSubmit ? 'hover:bg-accent-hi' : 'opacity-40 cursor-not-allowed'
+          }`}
         >
           {submitting ? 'Registering…' : 'Register community'}
         </button>
